@@ -11,7 +11,7 @@ export interface CanvasPointer {
 }
 
 /** Size of a grid dot. It is centred on the grid point. */
-const GRID_DOT_SIZE = 1;
+const GRID_DOT_SIZE = 2;
 /** Large enough to cover any reasonable viewport until panning arrives. */
 const GRID_EXTENT = 100_000;
 
@@ -39,7 +39,14 @@ export class Canvas {
         height: GRID,
         patternUnits: "userSpaceOnUse",
       },
-      [svgEl("rect", { width: GRID_DOT_SIZE, height: GRID_DOT_SIZE, fill: colours.border })],
+      [
+        svgEl("circle", {
+          cx: GRID_DOT_SIZE / 2,
+          cy: GRID_DOT_SIZE / 2,
+          r: GRID_DOT_SIZE / 2,
+          fill: colours.borderStrong,
+        }),
+      ],
     );
 
     const grid = svgEl("rect", {
