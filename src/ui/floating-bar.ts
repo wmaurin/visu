@@ -166,6 +166,21 @@ export function dropdown<T, V>(
   };
 }
 
+/** Button with icon and text that runs an action on the item. */
+export function action<T>(label: string, icon: IconDef, run: (item: T) => void): Control<T> {
+  return (current) => {
+    const el = button("tool action");
+    const text = document.createElement("span");
+    text.textContent = label;
+    el.append(renderIcon(icon), text);
+    el.addEventListener("click", () => {
+      const item = current();
+      if (item) run(item);
+    });
+    return { el, sync: () => {} };
+  };
+}
+
 /** A button that never takes focus on click. */
 function button(className: string): HTMLButtonElement {
   const el = document.createElement("button");

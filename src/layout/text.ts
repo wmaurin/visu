@@ -59,6 +59,11 @@ function measurer(fontSize: number): (s: string) => number {
   return (s) => ctx.measureText(s).width;
 }
 
+/** Width of a single line of sans text. */
+export function textWidth(text: string, fontSize: number): number {
+  return measurer(fontSize)(text);
+}
+
 /**
  * Greedy word wrap. Explicit newlines always break. A single word wider
  * than the line is broken between characters, matching the editor's

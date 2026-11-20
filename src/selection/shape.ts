@@ -1,45 +1,13 @@
 import type { AppContext } from "../context";
-import { inflate, MIN_SHAPE_SIZE, type Point, type Rect } from "../core/geometry";
 import { setAttrs } from "../core/svg";
 import type { Patch } from "../model/diagram";
 import type { RectShape, VAlign } from "../model/types";
-import {
-  HANDLE_HIT_SLOP,
-  HANDLE_SIZE,
-  outline,
-  SELECTION_PADDING,
-  sizeReadout,
-  squareHandle,
-} from "../render/overlay";
 import { cssFont, lineHeightFor, textStyle } from "../render/theme";
-import type { Gesture } from "../tools/tool";
-import type { CanvasPointer } from "../ui/canvas";
 import { dropdown, FloatingBar, numberField } from "../ui/floating-bar";
 import { focusAtEnd, makePlainTextEditable, type FieldSpec } from "../ui/inline-editor";
 import { H_ALIGN, V_ALIGN } from "./align";
-import { within, type Handler } from "./handler";
-
-type HandleId = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
-
-interface ResizeHandle {
-  readonly id: HandleId;
-  /** Position along the outline, 0 = left/top, 1 = right/bottom. */
-  readonly fx: 0 | 0.5 | 1;
-  readonly fy: 0 | 0.5 | 1;
-  readonly cursor: string;
-}
-
-/** Corners come first so they win when handles overlap on tiny shapes. */
-const HANDLES: readonly ResizeHandle[] = [
-  { id: "nw", fx: 0, fy: 0, cursor: "nwse-resize" },
-  { id: "ne", fx: 1, fy: 0, cursor: "nesw-resize" },
-  { id: "se", fx: 1, fy: 1, cursor: "nwse-resize" },
-  { id: "sw", fx: 0, fy: 1, cursor: "nesw-resize" },
-  { id: "n", fx: 0.5, fy: 0, cursor: "ns-resize" },
-  { id: "e", fx: 1, fy: 0.5, cursor: "ew-resize" },
-  { id: "s", fx: 0.5, fy: 1, cursor: "ns-resize" },
-  { id: "w", fx: 0, fy: 0.5, cursor: "ew-resize" },
-];
+import { boxBehaviour } from "./box";
+import type { Handler } from "./handler";
 
 const JUSTIFY: Record<VAlign, string> = { top: "flex-start", middle: "center", bottom: "flex-end" };
 
@@ -49,6 +17,7 @@ export function shapeHandler(ctx: AppContext): Handler<RectShape> {
   const set = (s: RectShape, patch: Patch<"shapes">) => diagram.update("shapes", s.id, patch);
 
   return {
+    ...boxBehaviour<RectShape>(ctx, "shapes"),
     cursor: "move",
     bar: new FloatingBar<RectShape>(canvas, "Text format", [
       numberField({
@@ -62,60 +31,8 @@ export function shapeHandler(ctx: AppContext): Handler<RectShape> {
       dropdown("Horizontal alignment", H_ALIGN, (s) => s.align, (s, align) => set(s, { align })),
       dropdown("Vertical alignment", V_ALIGN, (s) => s.valign, (s, valign) => set(s, { valign })),
     ]),
-
-    bounds: (s) => s,
-
-    overlay: (s) => [
-      outline(inflate(s, SELECTION_PADDING), 6),
-      ...HANDLES.map((h) => squareHandle(handleCentre(s, h))),
-    ],
-
-    handleAt: (s, p) => {
-      const handle = HANDLES.find((h) => within(p, handleCentre(s, h), HANDLE_SIZE / 2 + HANDLE_HIT_SLOP));
-      return handle ? { cursor: handle.cursor, begin: (start) => resize(ctx, s, handle.id, start) } : null;
-    },
-
-    drag: (s, start) => ({
-      move: ({ point }) => set(s, { x: s.x + point.x - start.point.x, y: s.y + point.y - start.point.y }),
-    }),
-
     doubleClick: (s) => editor.open({ kind: "shapes", id: s.id }, textField(ctx, s.id)),
   };
-}
-
-function handleCentre(r: Rect, h: ResizeHandle): Point {
-  const box = inflate(r, SELECTION_PADDING);
-  return { x: box.x + h.fx * box.width, y: box.y + h.fy * box.height };
-}
-
-function resize(ctx: AppContext, origin: RectShape, handle: HandleId, start: CanvasPointer): Gesture {
-  const overlay = ctx.canvas.overlay();
-  return {
-    move: ({ point }) => {
-      const bounds = resizeBounds(origin, handle, point.x - start.point.x, point.y - start.point.y);
-      ctx.diagram.update("shapes", origin.id, bounds);
-      overlay.replaceChildren(sizeReadout(bounds));
-    },
-    dispose: () => overlay.remove(),
-  };
-}
-
-/**
- * Moves the edges named by the handle by the given delta. The opposite
- * edges stay fixed and the shape never shrinks below MIN_SHAPE_SIZE.
- */
-function resizeBounds(origin: Rect, handle: HandleId, dx: number, dy: number): Rect {
-  let left = origin.x;
-  let top = origin.y;
-  let right = origin.x + origin.width;
-  let bottom = origin.y + origin.height;
-
-  if (handle.includes("w")) left = Math.min(left + dx, right - MIN_SHAPE_SIZE);
-  if (handle.includes("e")) right = Math.max(right + dx, left + MIN_SHAPE_SIZE);
-  if (handle.includes("n")) top = Math.min(top + dy, bottom - MIN_SHAPE_SIZE);
-  if (handle.includes("s")) bottom = Math.max(bottom + dy, top + MIN_SHAPE_SIZE);
-
-  return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
 /** Multi-line text editing inside the shape, laid out like the rendered text. */

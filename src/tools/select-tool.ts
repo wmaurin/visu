@@ -3,6 +3,7 @@ import type { IconDef } from "../core/svg";
 import { pick } from "../model/queries";
 import type { AnyItem, Collection, Ref } from "../model/types";
 import type { Handler } from "../selection/handler";
+import { frameHandler } from "../selection/frame";
 import { labelHandler } from "../selection/label";
 import { lineHandler } from "../selection/line";
 import { shapeHandler } from "../selection/shape";
@@ -14,7 +15,8 @@ import { GestureTool, type Gesture } from "./tool";
  * Selects, drags and edits items. Generic over item kinds: everything
  * kind specific (handles, drags, bars, double-click) lives in the handlers.
  *
- * Hit order: handles of the selected item, then texts, labels, shapes and lines.
+ * Hit order: handles of the selected item, then texts, labels, shapes,
+ * lines and the borders of export frames.
  */
 export class SelectTool extends GestureTool {
   readonly id = "select";
@@ -42,6 +44,7 @@ export class SelectTool extends GestureTool {
       lines: lineHandler(ctx),
       labels: labelHandler(ctx),
       texts: textHandler(ctx),
+      frames: frameHandler(ctx),
     };
     ctx.diagram.subscribe(() => this.render());
     ctx.selection.subscribe(() => this.render());

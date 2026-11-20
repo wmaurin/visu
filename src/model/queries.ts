@@ -2,8 +2,8 @@ import { containsPoint, GRID, inflate, type Point, type Rect } from "../core/geo
 import { anchorPoint, nearestAnchor, SIDE_OUT } from "../layout/anchors";
 import { distanceToPolyline, pointAlong } from "../layout/path";
 import { computeRoute, type RouteEnd } from "../layout/routing";
-import { tagBox } from "../layout/text";
-import type { Doc, Endpoint, FreeText, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
+import { tagBox, textWidth } from "../layout/text";
+import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
 
 /**
  * Read-only questions about a document. Pure functions of the Doc, so
@@ -14,6 +14,9 @@ import type { Doc, Endpoint, FreeText, LineLabel, LineShape, Ref, Routing, Shape
 const LINE_HIT_TOLERANCE = 5;
 /** How far outside a shape its anchors still catch the pointer. */
 const CATCH_MARGIN = GRID / 2;
+/** Export frame title: font size and height of its clickable area. */
+export const FRAME_TITLE_SIZE = 11;
+const FRAME_TITLE_HEIGHT = 20;
 
 /** Routes per document version. A new Doc starts with an empty cache. */
 const routes = new WeakMap<Doc, Map<string, Point[] | null>>();
@@ -92,7 +95,31 @@ export function textAt(doc: Doc, p: Point): FreeText | undefined {
   });
 }
 
-/** The item under the point, in drawing order from the top: texts, labels, shapes, lines. */
+/** Area of the name above an export frame's top left corner. */
+export function frameTitleBox(frame: ExportFrame): Rect {
+  const width = textWidth(frame.name, FRAME_TITLE_SIZE);
+  return { x: frame.x, y: frame.y - FRAME_TITLE_HEIGHT, width, height: FRAME_TITLE_HEIGHT };
+}
+
+/** "Frame" plus one more than the highest number in use, e.g. "Frame3". */
+export function nextFrameName(doc: Doc): string {
+  const numbers = doc.frames.map((f) => /^Frame(\d+)$/.exec(f.name)?.[1]).map(Number);
+  return `Frame${Math.max(0, ...numbers.filter(Number.isInteger)) + 1}`;
+}
+
+/**
+ * Export frame whose border or title is under the point. Its inside stays
+ * free, so items within the frame remain clickable.
+ */
+export function frameAt(doc: Doc, p: Point): ExportFrame | undefined {
+  return doc.frames.findLast((f) => {
+    const onBorder =
+      containsPoint(inflate(f, LINE_HIT_TOLERANCE), p) && !containsPoint(inflate(f, -LINE_HIT_TOLERANCE), p);
+    return onBorder || containsPoint(frameTitleBox(f), p);
+  });
+}
+
+/** The item under the point, in drawing order from the top: texts, labels, shapes, lines, frames. */
 export function pick(doc: Doc, p: Point): Ref | null {
   const text = textAt(doc, p);
   if (text) return { kind: "texts", id: text.id };
@@ -101,7 +128,9 @@ export function pick(doc: Doc, p: Point): Ref | null {
   const shape = shapeAt(doc, p);
   if (shape) return { kind: "shapes", id: shape.id };
   const line = lineAt(doc, p);
-  return line ? { kind: "lines", id: line.id } : null;
+  if (line) return { kind: "lines", id: line.id };
+  const frame = frameAt(doc, p);
+  return frame ? { kind: "frames", id: frame.id } : null;
 }
 
 /** Where a line end would go for the pointer position. */

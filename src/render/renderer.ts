@@ -2,10 +2,10 @@ import { svgEl } from "../core/svg";
 import { pathData } from "../layout/path";
 import { TAG_PADDING_X, wrapText } from "../layout/text";
 import type { Rect } from "../core/geometry";
-import { labelBox, route, textBox } from "../model/queries";
+import { FRAME_TITLE_SIZE, labelBox, route, textBox } from "../model/queries";
 import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
 import { markerAttrs } from "./markers";
-import { font, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
+import { colours, font, frameStyle, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = { left: "start", center: "middle", right: "end" };
 
@@ -102,6 +102,35 @@ function renderTag(
   text.textContent = item.text;
   const frame = framed ? [svgEl("rect", { ...box, ...tagStyle.box })] : [];
   return [svgEl("g", { "data-id": item.id }, [...frame, text])];
+}
+
+/**
+ * Export frames, drawn on their own layer below the diagram so they never
+ * end up in an export: a dashed border and the name above the top left
+ * corner. The name of the frame being edited is hidden.
+ */
+export function renderFrames(doc: Doc, layer: SVGGElement, editing: Ref | null): void {
+  layer.replaceChildren(
+    ...doc.frames.map((f) => {
+      const border = svgEl("rect", { ...rectOf(f), ...frameStyle });
+      if (editing?.kind === "frames" && editing.id === f.id) return svgEl("g", { "data-id": f.id }, [border]);
+
+      const title = svgEl("text", {
+        x: f.x,
+        y: f.y - 6,
+        "font-family": font.sans,
+        "font-size": FRAME_TITLE_SIZE,
+        fill: colours.muted,
+        style: "white-space: pre",
+      });
+      title.textContent = f.name;
+      return svgEl("g", { "data-id": f.id }, [border, title]);
+    }),
+  );
+}
+
+function rectOf({ x, y, width, height }: Rect): Rect {
+  return { x, y, width, height };
 }
 
 /**

@@ -3,7 +3,7 @@ import type { Collection, Doc, Endpoint, Item, Ref } from "./types";
 
 export type Patch<C extends Collection> = Partial<Omit<Item<C>, "id">>;
 
-const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [] };
+const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [], frames: [] };
 
 /**
  * The document store. Holds one immutable Doc and replaces it on every
@@ -62,8 +62,9 @@ export class Diagram extends Emitter {
     const lines = doc.lines.filter((l) => keep("lines", l.id) && !detached(l.from) && !detached(l.to));
     const labels = doc.labels.filter((l) => keep("labels", l.id) && lines.some((line) => line.id === l.lineId));
     const texts = doc.texts.filter((t) => keep("texts", t.id));
+    const frames = doc.frames.filter((f) => keep("frames", f.id));
 
-    const next: Doc = { shapes, lines, labels, texts };
+    const next: Doc = { shapes, lines, labels, texts, frames };
     const unchanged = (Object.keys(next) as Collection[]).every((k) => next[k].length === doc[k].length);
     if (!unchanged) this.restore(next);
   }

@@ -66,6 +66,14 @@ export const tagStyle = {
   },
 } as const;
 
+/** Export frame in the editor. Never exported itself. */
+export const frameStyle = {
+  fill: "none",
+  stroke: colours.borderStrong,
+  "stroke-width": 1,
+  "stroke-dasharray": "6 4",
+} as const;
+
 export const nodeStyle = {
   fill: colours.paper,
   stroke: colours.borderStrong,

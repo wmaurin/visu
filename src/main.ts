@@ -4,9 +4,9 @@ import type { AppContext } from "./context";
 import { Observable } from "./core/observable";
 import { Diagram } from "./model/diagram";
 import { sameRef, type Ref } from "./model/types";
-import { renderDiagram } from "./render/renderer";
+import { renderDiagram, renderFrames } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
-import { RectTool } from "./tools/rect-tool";
+import { frameTool, rectTool } from "./tools/box-tool";
 import { SelectTool } from "./tools/select-tool";
 import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
@@ -44,7 +44,13 @@ const ctx: AppContext = {
   editor: new InlineEditor(canvas, diagram, render),
 };
 
-const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx), new ArrowTool(ctx), new TextTool(ctx)];
+const tools: readonly Tool[] = [
+  new SelectTool(ctx),
+  rectTool(ctx),
+  new ArrowTool(ctx),
+  new TextTool(ctx),
+  frameTool(ctx),
+];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
 let active: Tool = tools[0]!;
 
@@ -59,6 +65,7 @@ const keymap: Record<string, Command> = {
 };
 
 function render(): void {
+  renderFrames(diagram.doc, canvas.frameLayer, ctx.editor.editing);
   renderDiagram(diagram.doc, canvas.documentLayer, ctx.editor.editing);
 }
 

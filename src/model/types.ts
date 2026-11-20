@@ -68,6 +68,16 @@ export interface FreeText {
 }
 
 /**
+ * Export area, like an artboard. Shown in the editor, never exported
+ * itself. Its bounds become the viewBox of the exported SVG.
+ */
+export interface ExportFrame extends Rect {
+  readonly id: string;
+  /** Shown above the top left corner and used as the export file name. */
+  readonly name: string;
+}
+
+/**
  * The whole diagram. Immutable: every change produces a new Doc, which
  * makes snapshots, cancel and undo trivial.
  */
@@ -76,6 +86,7 @@ export interface Doc {
   readonly lines: readonly LineShape[];
   readonly labels: readonly LineLabel[];
   readonly texts: readonly FreeText[];
+  readonly frames: readonly ExportFrame[];
 }
 
 export type Collection = keyof Doc;

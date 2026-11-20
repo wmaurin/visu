@@ -18,12 +18,14 @@ const GRID_EXTENT = 100_000;
 
 /**
  * The drawing surface. Layers, bottom to top:
- * grid, document and overlay (transient editor feedback).
+ * grid, export frames, document and overlay (transient editor feedback).
  * Everything sits inside `viewport`, which will later carry pan and zoom.
  */
 export class Canvas {
   readonly svg: SVGSVGElement;
   readonly viewport: SVGGElement;
+  /** Export frames. Separate, so exports never include them. */
+  readonly frameLayer: SVGGElement;
   readonly documentLayer: SVGGElement;
   readonly overlayLayer: SVGGElement;
 
@@ -59,9 +61,15 @@ export class Canvas {
       fill: "url(#grid-dots)",
     });
 
+    this.frameLayer = svgEl("g", { "data-layer": "frames" });
     this.documentLayer = svgEl("g", { "data-layer": "document" });
     this.overlayLayer = svgEl("g", { "data-layer": "overlay", "pointer-events": "none" });
-    this.viewport = svgEl("g", { "data-layer": "viewport" }, [grid, this.documentLayer, this.overlayLayer]);
+    this.viewport = svgEl("g", { "data-layer": "viewport" }, [
+      grid,
+      this.frameLayer,
+      this.documentLayer,
+      this.overlayLayer,
+    ]);
 
     this.svg = svgEl("svg", { role: "img", "aria-label": "Diagram canvas" }, [
       svgEl("defs", {}, [pattern, arrowMarker()]),

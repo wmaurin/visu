@@ -159,6 +159,16 @@ body {
   color: var(--muted);
 }
 
+.floating-bar .action {
+  display: flex;
+  gap: 6px;
+  width: auto;
+  padding: 0 10px 0 8px;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .dropdown {
   position: relative;
 }
