@@ -4,6 +4,7 @@ import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
 import { newId } from "./model/diagram";
+import { settle } from "./model/hierarchy";
 import type { FreeText, Shape } from "./model/types";
 
 /** A command reports whether it did anything, so the key press is consumed. */
@@ -50,6 +51,8 @@ export function createCommands({ diagram, selection, editor }: AppContext) {
     const moved = { ...item, id, x: item.x + offset, y: item.y + offset };
     if (kind === "shapes") diagram.add(kind, moved as Shape);
     else diagram.add(kind, moved as FreeText);
+    // The copy finds its own place, it need not sit where the original did.
+    settle(diagram, { kind, id });
     selection.set({ kind, id });
     return true;
   };

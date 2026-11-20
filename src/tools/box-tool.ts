@@ -2,6 +2,7 @@ import type { AppContext } from "../context";
 import { rectFromPoints, type Rect } from "../core/geometry";
 import type { IconDef } from "../core/svg";
 import { newId, type Patch } from "../model/diagram";
+import { settle } from "../model/hierarchy";
 import { nextFrameName } from "../model/queries";
 import type { Item } from "../model/types";
 import { sizeReadout } from "../render/overlay";
@@ -64,8 +65,11 @@ export class BoxTool<C extends BoxKind> extends GestureTool {
       end: () => {
         const box = diagram.get(kind, id);
         const kept = !!box && box.width >= step && box.height >= step;
-        if (kept) selection.set({ kind, id });
-        return kept;
+        if (!kept) return false;
+        // A new rectangle joins what it was drawn in and adopts what it was drawn around.
+        if (kind === "shapes") settle(diagram, { kind: "shapes", id });
+        selection.set({ kind, id });
+        return true;
       },
       dispose: () => overlay.remove(),
     };
@@ -88,6 +92,7 @@ export function rectTool(ctx: AppContext): BoxTool<"shapes"> {
       align: "center",
       valign: "middle",
       fontSize: textStyle.defaultFontSize,
+      parentId: null,
     }),
   });
 }

@@ -1,4 +1,4 @@
-import { arr, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
+import { arr, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
 import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, RectShape } from "../model/types";
 import { textStyle } from "../render/theme";
 
@@ -31,6 +31,7 @@ const ID = str(64, /^[\w-]+$/);
 const H_ALIGN = oneOf("left", "center", "right");
 const V_ALIGN = oneOf("top", "middle", "bottom");
 const CAP = oneOf("none", "arrow");
+const PARENT = nullable(ID);
 
 const rect = obj<RectShape>({
   id: ID,
@@ -43,6 +44,7 @@ const rect = obj<RectShape>({
   align: H_ALIGN,
   valign: V_ALIGN,
   fontSize: FONT_SIZE,
+  parentId: PARENT,
 });
 
 const anchorEnd = obj<Extract<Endpoint, { kind: "anchor" }>>({
@@ -74,6 +76,7 @@ const text = obj<FreeText>({
   fontSize: FONT_SIZE,
   align: H_ALIGN,
   valign: V_ALIGN,
+  parentId: PARENT,
 });
 
 const frame = obj<ExportFrame>({ id: ID, x: COORD, y: COORD, width: SIZE, height: SIZE, name: str(200) });
@@ -133,4 +136,20 @@ function checkReferences(d: Doc): void {
   d.labels.forEach((l, i) => {
     if (!lines.has(l.lineId)) throw new ValidationError(`file.doc.labels[${i}].lineId: unknown line`);
   });
+
+  // Parents must be existing shapes, and following them must end at the top.
+  const parentOf = new Map(d.shapes.map((s) => [s.id, s.parentId]));
+  const checkParent = (kind: "shapes" | "texts", i: number, parentId: string | null) => {
+    if (parentId === null) return;
+    if (!shapes.has(parentId)) throw new ValidationError(`file.doc.${kind}[${i}].parentId: unknown shape`);
+  };
+  d.shapes.forEach((s, i) => {
+    checkParent("shapes", i, s.parentId);
+    const visited = new Set([s.id]);
+    for (let p = s.parentId; p !== null; p = parentOf.get(p) ?? null) {
+      if (visited.has(p)) throw new ValidationError(`file.doc.shapes[${i}].parentId: cycle`);
+      visited.add(p);
+    }
+  });
+  d.texts.forEach((t, i) => checkParent("texts", i, t.parentId));
 }

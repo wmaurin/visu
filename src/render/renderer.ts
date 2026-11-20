@@ -2,7 +2,7 @@ import { svgEl } from "../core/svg";
 import { pathData } from "../layout/path";
 import { TAG_PADDING_X, wrapText } from "../layout/text";
 import type { Rect } from "../core/geometry";
-import { FRAME_TITLE_SIZE, labelBox, route, textBox } from "../model/queries";
+import { FRAME_TITLE_SIZE, labelBox, layering, route, textBox } from "../model/queries";
 import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
 import { markerAttrs } from "./markers";
 import { colours, font, frameStyle, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
@@ -135,15 +135,18 @@ function rectOf({ x, y, width, height }: Rect): Rect {
 
 /**
  * Full redraw of the document layer. Cheap enough until diagrams get large.
- * Lines come first so shapes cover their ends, as the style guide asks.
- * Labels and texts come last, so they stay readable where they touch a shape.
+ * Order from the bottom, as the style guide asks: containers (outermost
+ * first), lines, leaf rectangles covering the line ends, then labels and
+ * texts so they stay readable where they touch a rectangle.
  * The item being edited hides its text, as the inline editor shows it.
  */
 export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null): void {
   const hidden = (kind: Ref["kind"], id: string) => editing?.kind === kind && editing.id === id;
+  const { containers, leaves } = layering(doc);
   layer.replaceChildren(
+    ...containers.map((s) => renderShape(s, hidden("shapes", s.id))),
     ...doc.lines.flatMap((l) => renderLine(doc, l)),
-    ...doc.shapes.map((s) => renderShape(s, hidden("shapes", s.id))),
+    ...leaves.map((s) => renderShape(s, hidden("shapes", s.id))),
     ...doc.labels.flatMap((l) => (hidden("labels", l.id) ? [] : renderTag(l, labelBox(doc, l), true))),
     ...doc.texts.flatMap((t) => (hidden("texts", t.id) ? [] : renderTag(t, textBox(t), false, t.align))),
   );

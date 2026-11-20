@@ -38,6 +38,11 @@ export function oneOf<const T extends string | number>(...allowed: T[]): Check<T
   };
 }
 
+/** The value checked by `check`, or null. */
+export function nullable<T>(check: Check<T>): Check<T | null> {
+  return (v, path) => (v === null ? null : check(v, path));
+}
+
 export function arr<T>(item: Check<T>, maxItems: number): Check<T[]> {
   return (v, path) => {
     if (!Array.isArray(v)) fail(path, "expected a list");

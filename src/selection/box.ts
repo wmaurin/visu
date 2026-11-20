@@ -1,6 +1,8 @@
 import type { AppContext } from "../context";
 import { grid, inflate, type Point, type Rect } from "../core/geometry";
-import type { Item } from "../model/types";
+import { settle } from "../model/hierarchy";
+import { descendants } from "../model/queries";
+import type { ChildKind, Item } from "../model/types";
 import { HANDLE_HIT_SLOP, HANDLE_SIZE, outline, SELECTION_PADDING, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
 import type { CanvasPointer } from "../ui/canvas";
@@ -66,11 +68,35 @@ export function boxBehaviour<T extends Item<BoxKind>>(
       return handle ? { cursor: handle.cursor, begin: (start) => resize(ctx, kind, b, handle.id, start) } : null;
     },
 
-    drag: (b, start) => ({
-      move: ({ point }) =>
-        ctx.diagram.update(kind, b.id, { x: b.x + point.x - start.point.x, y: b.y + point.y - start.point.y }),
-    }),
+    drag: (b, start) => {
+      // Everything inside a rectangle moves with it, from where it was at the start.
+      const { doc } = ctx.diagram;
+      const moving = [
+        { kind, item: b as Item<BoxKind | ChildKind> },
+        ...(kind === "shapes" ? descendants(doc, b.id) : []).flatMap((ref) => {
+          const item = ctx.diagram.get(ref.kind as ChildKind, ref.id);
+          return item ? [{ kind: ref.kind as ChildKind, item }] : [];
+        }),
+      ];
+      return {
+        move: ({ point }) => {
+          const dx = point.x - start.point.x;
+          const dy = point.y - start.point.y;
+          ctx.diagram.batch(() => {
+            for (const { kind: k, item } of moving) {
+              ctx.diagram.update(k, item.id, { x: item.x + dx, y: item.y + dy });
+            }
+          });
+        },
+        end: () => settleBox(ctx, kind, b.id),
+      };
+    },
   };
+}
+
+/** Rechecks what a rectangle sits in and contains. Frames take no part. */
+function settleBox(ctx: AppContext, kind: BoxKind, id: string): void {
+  if (kind === "shapes") settle(ctx.diagram, { kind, id });
 }
 
 function handleCentre(r: Rect, h: ResizeHandle): Point {
@@ -87,6 +113,7 @@ function resize(ctx: AppContext, kind: BoxKind, origin: Item<BoxKind>, handle: H
       ctx.diagram.update(kind, origin.id, bounds);
       overlay.replaceChildren(sizeReadout(bounds));
     },
+    end: () => settleBox(ctx, kind, origin.id),
     dispose: () => overlay.remove(),
   };
 }

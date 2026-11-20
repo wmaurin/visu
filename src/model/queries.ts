@@ -38,11 +38,106 @@ function routeEnd(doc: Doc, end: Endpoint): RouteEnd | null {
   return point && { point, out: end.kind === "anchor" ? SIDE_OUT[end.side] : null };
 }
 
-/** Polyline between two ends. Every shape is an obstacle. */
+/**
+ * Polyline between two ends. Only leaf rectangles are obstacles, so lines
+ * may cross container borders to reach what is inside.
+ */
 export function routeBetween(doc: Doc, from: Endpoint, to: Endpoint, routing: Routing): Point[] | null {
   const a = routeEnd(doc, from);
   const b = routeEnd(doc, to);
-  return a && b ? computeRoute(a, b, routing, doc.shapes) : null;
+  return a && b ? computeRoute(a, b, routing, layering(doc).leaves) : null;
+}
+
+// Hierarchy
+
+export interface Layering {
+  /** Rectangles with children, outermost first. Drawn below lines. */
+  readonly containers: readonly Shape[];
+  /** Rectangles without children, in document order. Drawn above lines. */
+  readonly leaves: readonly Shape[];
+  /** All rectangles from bottom to top: containers, then leaves. */
+  readonly drawOrder: readonly Shape[];
+  /** Direct children per rectangle id. */
+  readonly children: ReadonlyMap<string, readonly Ref[]>;
+}
+
+const layerings = new WeakMap<Doc, Layering>();
+
+/**
+ * Splits rectangles into containers and leaves and orders them for drawing.
+ * Cached per document version. A parent that does not exist counts as none.
+ */
+export function layering(doc: Doc): Layering {
+  const cached = layerings.get(doc);
+  if (cached) return cached;
+
+  const ids = new Set(doc.shapes.map((s) => s.id));
+  const children = new Map<string, Ref[]>();
+  const adopt = (parentId: string | null, ref: Ref) => {
+    if (parentId === null || !ids.has(parentId)) return;
+    children.set(parentId, [...(children.get(parentId) ?? []), ref]);
+  };
+  for (const s of doc.shapes) adopt(s.parentId, { kind: "shapes", id: s.id });
+  for (const t of doc.texts) adopt(t.parentId, { kind: "texts", id: t.id });
+
+  const parentOf = new Map(doc.shapes.map((s) => [s.id, s.parentId]));
+  const depth = (id: string) => {
+    let d = 0;
+    // Bounded, so a broken chain can never loop.
+    for (let p = parentOf.get(id); p && ids.has(p) && d < ids.size; p = parentOf.get(p)) d += 1;
+    return d;
+  };
+
+  const containers = doc.shapes.filter((s) => children.has(s.id)).sort((a, b) => depth(a.id) - depth(b.id));
+  const leaves = doc.shapes.filter((s) => !children.has(s.id));
+  const result: Layering = { containers, leaves, drawOrder: [...containers, ...leaves], children };
+  layerings.set(doc, result);
+  return result;
+}
+
+/** All items inside a rectangle, at any depth. */
+export function descendants(doc: Doc, shapeId: string): Ref[] {
+  const { children } = layering(doc);
+  const found: Ref[] = [];
+  const seen = new Set([shapeId]);
+  for (let queue = [...(children.get(shapeId) ?? [])]; queue.length > 0; ) {
+    const ref = queue.shift()!;
+    if (seen.has(ref.id)) continue;
+    seen.add(ref.id);
+    found.push(ref);
+    if (ref.kind === "shapes") queue = [...queue, ...(children.get(ref.id) ?? [])];
+  }
+  return found;
+}
+
+/** Area an item occupies, used to decide what it sits in. */
+export function childBounds(item: Shape | FreeText): Rect {
+  if ("width" in item) return item;
+  return textBox(item) ?? { x: item.x, y: item.y, width: 0, height: 0 };
+}
+
+/**
+ * The innermost rectangle that fully contains `bounds` and is larger,
+ * skipping the item itself and its descendants so no cycle can form.
+ */
+export function parentFor(doc: Doc, ref: Ref, bounds: Rect): string | null {
+  const excluded = new Set(ref.kind === "shapes" ? [ref.id, ...descendants(doc, ref.id).map((d) => d.id)] : []);
+  const area = (r: Rect) => r.width * r.height;
+  let best: Shape | null = null;
+  for (const s of doc.shapes) {
+    if (excluded.has(s.id) || area(s) <= area(bounds) || !containsRect(s, bounds)) continue;
+    if (!best || area(s) < area(best)) best = s;
+  }
+  return best?.id ?? null;
+}
+
+function containsRect(outer: Rect, inner: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
 }
 
 /** The polyline a line is drawn along, or null if one of its shapes is gone. */
@@ -66,9 +161,19 @@ export function labelBox(doc: Doc, label: LineLabel): Rect | null {
   return tagBox(pointAlong(points, label.t), label.text, label.fontSize);
 }
 
-/** Topmost shape under the point, i.e. the last one drawn. */
+/** Topmost rectangle under the point: a leaf before the innermost container. */
 export function shapeAt(doc: Doc, p: Point, margin = 0): Shape | undefined {
-  return doc.shapes.findLast((s) => containsPoint(inflate(s, margin), p));
+  return layering(doc).drawOrder.findLast((s) => containsPoint(inflate(s, margin), p));
+}
+
+/** Leaf rectangle under the point. Containers are picked after lines. */
+function leafAt(doc: Doc, p: Point): Shape | undefined {
+  return layering(doc).leaves.findLast((s) => containsPoint(s, p));
+}
+
+/** Innermost container under the point. */
+function containerAt(doc: Doc, p: Point): Shape | undefined {
+  return layering(doc).containers.findLast((s) => containsPoint(s, p));
 }
 
 export function lineAt(doc: Doc, p: Point): LineShape | undefined {
@@ -121,16 +226,21 @@ export function frameAt(doc: Doc, p: Point): ExportFrame | undefined {
   });
 }
 
-/** The item under the point, in drawing order from the top: texts, labels, shapes, lines, frames. */
+/**
+ * The item under the point, in drawing order from the top: texts, labels,
+ * leaf rectangles, lines, containers (innermost first), frames.
+ */
 export function pick(doc: Doc, p: Point): Ref | null {
   const text = textAt(doc, p);
   if (text) return { kind: "texts", id: text.id };
   const label = labelAt(doc, p);
   if (label) return { kind: "labels", id: label.id };
-  const shape = shapeAt(doc, p);
-  if (shape) return { kind: "shapes", id: shape.id };
+  const leaf = leafAt(doc, p);
+  if (leaf) return { kind: "shapes", id: leaf.id };
   const line = lineAt(doc, p);
   if (line) return { kind: "lines", id: line.id };
+  const container = containerAt(doc, p);
+  if (container) return { kind: "shapes", id: container.id };
   const frame = frameAt(doc, p);
   return frame ? { kind: "frames", id: frame.id } : null;
 }

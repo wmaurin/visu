@@ -15,6 +15,8 @@ export interface RectShape extends Rect {
   readonly valign: VAlign;
   /** In px, like every other diagram unit. */
   readonly fontSize: number;
+  /** Rectangle this one sits in, or null at the top level. See model/hierarchy. */
+  readonly parentId: string | null;
 }
 
 /** Union of all box-like shape kinds. Extend as new shapes arrive. */
@@ -65,7 +67,12 @@ export interface FreeText {
   readonly fontSize: number;
   readonly align: HAlign;
   readonly valign: VAlign;
+  /** Rectangle this text sits in, or null at the top level. */
+  readonly parentId: string | null;
 }
+
+/** Items that can sit inside a rectangle. */
+export type ChildKind = "shapes" | "texts";
 
 /**
  * Export area, like an artboard. Shown in the editor, never exported

@@ -1,6 +1,7 @@
 import type { AppContext } from "../context";
 import type { IconDef } from "../core/svg";
 import { newId } from "../model/diagram";
+import { settle } from "../model/hierarchy";
 import { textAt } from "../model/queries";
 import { tagStyle } from "../render/theme";
 import { textField } from "../selection/text";
@@ -47,7 +48,9 @@ export class TextTool implements Tool {
         fontSize: tagStyle.defaultFontSize,
         align: "left",
         valign: "top",
+        parentId: null,
       });
+      settle(diagram, { kind: "texts", id });
     }
     selection.set({ kind: "texts", id });
     editor.open({ kind: "texts", id }, textField(this.ctx, id));

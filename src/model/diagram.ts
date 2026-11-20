@@ -1,4 +1,5 @@
 import { Emitter } from "../core/observable";
+import { descendants } from "./queries";
 import type { Collection, Doc, Endpoint, Item, Ref } from "./types";
 
 export type Patch<C extends Collection> = Partial<Omit<Item<C>, "id">>;
@@ -12,6 +13,8 @@ const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [], frames: [] };
  */
 export class Diagram extends Emitter {
   private current: Doc = EMPTY;
+  private batchDepth = 0;
+  private pending = false;
 
   get doc(): Doc {
     return this.current;
@@ -21,7 +24,22 @@ export class Diagram extends Emitter {
   restore(doc: Doc): void {
     if (doc === this.current) return;
     this.current = doc;
-    this.emit();
+    if (this.batchDepth > 0) this.pending = true;
+    else this.emit();
+  }
+
+  /** Runs several changes and notifies subscribers once at the end. */
+  batch(changes: () => void): void {
+    this.batchDepth += 1;
+    try {
+      changes();
+    } finally {
+      this.batchDepth -= 1;
+      if (this.batchDepth === 0 && this.pending) {
+        this.pending = false;
+        this.emit();
+      }
+    }
   }
 
   get<C extends Collection>(kind: C, id: string): Item<C> | undefined {
@@ -50,12 +68,17 @@ export class Diagram extends Emitter {
   }
 
   /**
-   * Removes an item and everything that depends on it: lines attached to
-   * a removed shape, and labels of a removed line.
+   * Removes an item and everything that depends on it: the descendants of
+   * a removed rectangle, lines attached to any removed rectangle, and the
+   * labels of removed lines.
    */
-  remove({ kind, id }: Ref): void {
+  remove(ref: Ref): void {
     const doc = this.current;
-    const keep = (k: Collection, itemId: string) => k !== kind || itemId !== id;
+    const gone = new Set([`${ref.kind}:${ref.id}`]);
+    if (ref.kind === "shapes") {
+      for (const d of descendants(doc, ref.id)) gone.add(`${d.kind}:${d.id}`);
+    }
+    const keep = (kind: Collection, id: string) => !gone.has(`${kind}:${id}`);
 
     const shapes = doc.shapes.filter((s) => keep("shapes", s.id));
     const detached = (e: Endpoint) => e.kind === "anchor" && !shapes.some((s) => s.id === e.shapeId);

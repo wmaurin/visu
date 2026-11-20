@@ -2,6 +2,7 @@ import type { AppContext } from "../context";
 import { snapPoint } from "../core/geometry";
 import { anchorOf, tagBox } from "../layout/text";
 import type { Patch } from "../model/diagram";
+import { settle } from "../model/hierarchy";
 import { textBox } from "../model/queries";
 import type { FreeText, HAlign, VAlign } from "../model/types";
 import { dropdown, FloatingBar } from "../ui/floating-bar";
@@ -31,6 +32,7 @@ export function textHandler(ctx: AppContext): Handler<FreeText> {
 
     drag: (t, start) => ({
       move: ({ point }) => set(t, { x: t.x + point.x - start.point.x, y: t.y + point.y - start.point.y }),
+      end: () => settle(diagram, { kind: "texts", id: t.id }),
     }),
 
     doubleClick: (t) => ctx.editor.open({ kind: "texts", id: t.id }, textField(ctx, t.id)),
