@@ -16,6 +16,7 @@
         "valign": "top",
         "fontSize": 13,
         "bold": true,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": null
@@ -32,6 +33,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "sky",
         "saturation": 10,
         "parentId": null
@@ -48,6 +50,7 @@
         "valign": "top",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": "8937bb7d-8860-4010-bd61-374aa4568a4d"
@@ -64,6 +67,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "sky",
         "saturation": 10,
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -80,6 +84,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -96,6 +101,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -112,6 +118,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -128,6 +135,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -144,6 +152,7 @@
         "valign": "top",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": "8937bb7d-8860-4010-bd61-374aa4568a4d"
@@ -160,6 +169,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "d6d1cbae-7d79-4b03-997e-3ec39daf53ee"
@@ -176,6 +186,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "sky",
         "saturation": 10,
         "parentId": "d6d1cbae-7d79-4b03-997e-3ec39daf53ee"
@@ -192,6 +203,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": "d6d1cbae-7d79-4b03-997e-3ec39daf53ee"
@@ -208,6 +220,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "cf0fc6ff-35be-4f32-bc55-50767e552a3a"
@@ -224,6 +237,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "cf0fc6ff-35be-4f32-bc55-50767e552a3a"
@@ -240,6 +254,7 @@
         "valign": "top",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": "8937bb7d-8860-4010-bd61-374aa4568a4d"
@@ -256,6 +271,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "981a00a9-1f6c-40a0-bd31-d279b6546371"
@@ -272,6 +288,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "sky",
         "saturation": 10,
         "parentId": "981a00a9-1f6c-40a0-bd31-d279b6546371"
@@ -288,6 +305,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "black",
         "saturation": 0,
         "parentId": "981a00a9-1f6c-40a0-bd31-d279b6546371"
@@ -304,6 +322,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "58469e2d-03ae-4bd1-84d7-684c7a7ddae3"
@@ -320,6 +339,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "58469e2d-03ae-4bd1-84d7-684c7a7ddae3"
@@ -336,6 +356,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "cf0fc6ff-35be-4f32-bc55-50767e552a3a"
@@ -352,6 +373,7 @@
         "valign": "middle",
         "fontSize": 13,
         "bold": false,
+        "textColor": "black",
         "color": "blue",
         "saturation": 10,
         "parentId": "58469e2d-03ae-4bd1-84d7-684c7a7ddae3"
@@ -641,6 +663,7 @@
         "text": "kube-scheduler",
         "fontSize": 11,
         "bold": false,
+        "textColor": "black",
         "align": "center",
         "valign": "top",
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"
@@ -652,6 +675,7 @@
         "text": "kube-controller-manager",
         "fontSize": 11,
         "bold": false,
+        "textColor": "black",
         "align": "center",
         "valign": "top",
         "parentId": "2da8ee69-96c1-4555-9339-2205c3dc04e1"

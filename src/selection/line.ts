@@ -94,6 +94,7 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
         t: fractionAlong(pts, p.raw),
         fontSize: tagStyle.defaultFontSize,
         bold: false,
+        textColor: "black",
       });
       ctx.selection.set([ref]);
       ctx.editor.open(ref, labelField(ctx, ref.id));

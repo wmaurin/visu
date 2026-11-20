@@ -2,9 +2,8 @@ import type { AppContext } from "../context";
 import { setAttrs } from "../core/svg";
 import type { Patch } from "../model/diagram";
 import type { RectShape, VAlign } from "../model/types";
-import { shapeFill } from "../render/renderer";
-import { cssFont, lineHeightFor, readableOn, textStyle } from "../render/theme";
-import { boldToggle, colorField, dropdown, FloatingBar, numberField } from "../ui/floating-bar";
+import { cssFont, lineHeightFor, textFill, textStyle } from "../render/theme";
+import { boldToggle, colorField, dropdown, FloatingBar, numberField, whiteTextToggle } from "../ui/floating-bar";
 import { focusAtEnd, makePlainTextEditable, type FieldSpec } from "../ui/inline-editor";
 import { H_ALIGN, V_ALIGN } from "./align";
 import { boxBehaviour } from "./box";
@@ -31,6 +30,7 @@ export function shapeHandler(ctx: AppContext): Handler<RectShape> {
         write: (s, fontSize) => set(s, { fontSize }),
       }),
       boldToggle((s, bold) => set(s, { bold })),
+      whiteTextToggle((s, textColor) => set(s, { textColor })),
       dropdown("Horizontal alignment", H_ALIGN, (s) => s.align, (s, align) => set(s, { align })),
       dropdown("Vertical alignment", V_ALIGN, (s) => s.valign, (s, valign) => set(s, { valign })),
     ]),
@@ -75,7 +75,7 @@ function textField(ctx: AppContext, id: string): FieldSpec {
       setAttrs(frame, { x: s.x, y: s.y, width: s.width, height: s.height });
       root.style.justifyContent = JUSTIFY[s.valign];
       field.style.textAlign = s.align;
-      field.style.color = readableOn(shapeFill(s));
+      field.style.color = textFill(s.textColor);
       field.style.font = cssFont(s.fontSize, s.bold);
       field.style.lineHeight = `${lineHeightFor(s.fontSize)}px`;
       return true;

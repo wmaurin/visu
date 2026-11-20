@@ -26,6 +26,8 @@ export const COLOR_NAMES = [
 ] as const;
 export type ColorName = (typeof COLOR_NAMES)[number];
 
+export type TextColor = "black" | "white";
+
 export interface RectShape extends Rect {
   readonly id: string;
   readonly kind: "rect";
@@ -36,6 +38,8 @@ export interface RectShape extends Rect {
   readonly fontSize: number;
   /** All text in the rectangle is bold, or none. */
   readonly bold: boolean;
+  /** White reads on dark fills. */
+  readonly textColor: TextColor;
   /** Border colour. The fill is this colour mixed with white. */
   readonly color: ColorName;
   /** Fill strength, 0 (white) to 100 (full colour). */
@@ -81,6 +85,8 @@ export interface LineLabel {
   /** In px. The tag around the text scales with it. */
   readonly fontSize: number;
   readonly bold: boolean;
+  /** White text turns the tag black, so it stays readable. */
+  readonly textColor: TextColor;
 }
 
 /**
@@ -96,6 +102,8 @@ export interface FreeText {
   /** In px. The box around the text scales with it. */
   readonly fontSize: number;
   readonly bold: boolean;
+  /** White reads on dark fills, e.g. a caption on a coloured rectangle. */
+  readonly textColor: TextColor;
   readonly align: HAlign;
   readonly valign: VAlign;
   /** Rectangle this text sits in, or null at the top level. */

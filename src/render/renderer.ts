@@ -14,7 +14,7 @@ import {
   linkStyle,
   nodeStyle,
   PALETTE,
-  readableOn,
+  textFill,
   tagStyle,
   textStyle,
   tint,
@@ -50,8 +50,7 @@ function renderText(shape: RectShape): SVGTextElement {
       "font-family": font.sans,
       "font-size": fontSize,
       "font-weight": fontWeight(shape.bold),
-      // Switches to white on dark fills, so text stays readable.
-      fill: readableOn(shapeFill(shape)),
+      fill: textFill(shape.textColor),
       style: "white-space: pre",
     },
     lines.map((line, i) => {
@@ -131,10 +130,13 @@ function renderTag(
     y: box.y + box.height / 2 + item.fontSize * 0.36,
     "font-size": item.fontSize,
     "font-weight": fontWeight(item.bold),
+    fill: textFill(item.textColor),
     style: "white-space: pre",
   });
   text.textContent = item.text;
-  const frame = framed ? [svgEl("rect", { ...box, ...tagStyle.box })] : [];
+  // A framed tag with white text turns black, so the text stays readable.
+  const inverted = item.textColor === "white" ? { fill: colours.diagram, stroke: colours.diagram } : {};
+  const frame = framed ? [svgEl("rect", { ...box, ...tagStyle.box, ...inverted })] : [];
   return [svgEl("g", { "data-id": item.id }, [...frame, text])];
 }
 

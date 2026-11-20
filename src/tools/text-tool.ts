@@ -47,6 +47,7 @@ export class TextTool implements Tool {
         text: "",
         fontSize: tagStyle.defaultFontSize,
         bold: false,
+        textColor: "black",
         align: "left",
         valign: "top",
         parentId: null,

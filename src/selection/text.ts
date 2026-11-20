@@ -5,7 +5,7 @@ import type { Patch } from "../model/diagram";
 import { settle } from "../model/hierarchy";
 import { textBox } from "../model/queries";
 import type { FreeText, HAlign, VAlign } from "../model/types";
-import { dropdown, FloatingBar } from "../ui/floating-bar";
+import { dropdown, FloatingBar, whiteTextToggle } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 import { H_ALIGN, V_ALIGN } from "./align";
 import type { Handler } from "./handler";
@@ -25,6 +25,7 @@ export function textHandler(ctx: AppContext): Handler<FreeText> {
     bar: new FloatingBar<FreeText>(ctx.canvas, "Text format", [
       fontSizeField(ctx, "texts"),
       tagBoldToggle(ctx, "texts"),
+      whiteTextToggle((t, textColor) => set(t, { textColor })),
       dropdown("Horizontal alignment", H_ALIGN, (t) => t.align, (t, align) => set(t, realign(t, align, t.valign))),
       dropdown("Vertical alignment", V_ALIGN, (t) => t.valign, (t, valign) => set(t, realign(t, t.align, valign))),
     ]),

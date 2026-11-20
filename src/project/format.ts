@@ -42,6 +42,7 @@ const H_ALIGN = oneOf("left", "center", "right");
 const V_ALIGN = oneOf("top", "middle", "bottom");
 const CAP = oneOf("none", "arrow");
 const PARENT = nullable(ID);
+const TEXT_COLOR = oneOf("black", "white");
 const COLOR = oneOf(...COLOR_NAMES);
 const SATURATION = num(0, 100);
 
@@ -57,6 +58,7 @@ const rect = obj<RectShape>({
   valign: V_ALIGN,
   fontSize: FONT_SIZE,
   bold: bool,
+  textColor: TEXT_COLOR,
   color: COLOR,
   saturation: SATURATION,
   parentId: PARENT,
@@ -84,7 +86,7 @@ const line = obj<LineShape>({
   endCap: CAP,
 });
 
-const label = obj<LineLabel>({ id: ID, lineId: ID, text: str(MAX_TEXT), t: num(0, 1), fontSize: FONT_SIZE, bold: bool });
+const label = obj<LineLabel>({ id: ID, lineId: ID, text: str(MAX_TEXT), t: num(0, 1), fontSize: FONT_SIZE, bold: bool, textColor: TEXT_COLOR });
 
 const text = obj<FreeText>({
   id: ID,
@@ -93,6 +95,7 @@ const text = obj<FreeText>({
   text: str(MAX_TEXT),
   fontSize: FONT_SIZE,
   bold: bool,
+  textColor: TEXT_COLOR,
   align: H_ALIGN,
   valign: V_ALIGN,
   parentId: PARENT,

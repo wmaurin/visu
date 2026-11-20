@@ -2,7 +2,7 @@ import type { AppContext } from "../context";
 import { fractionAlong, pointAlong } from "../layout/path";
 import { labelBox, route } from "../model/queries";
 import type { LineLabel } from "../model/types";
-import { FloatingBar } from "../ui/floating-bar";
+import { FloatingBar, whiteTextToggle } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 import type { Handler } from "./handler";
 import { fontSizeField, tagBoldToggle, tagField, tagOverlay } from "./tag";
@@ -20,6 +20,7 @@ export function labelHandler(ctx: AppContext): Handler<LineLabel> {
     bar: new FloatingBar<LineLabel>(ctx.canvas, "Label format", [
       fontSizeField(ctx, "labels"),
       tagBoldToggle(ctx, "labels"),
+      whiteTextToggle<LineLabel>((l, textColor) => diagram.update("labels", l.id, { textColor })),
     ]),
     bounds: (l) => labelBox(diagram.doc, l),
     overlay: (l) => tagOverlay(labelBox(diagram.doc, l)),

@@ -1,4 +1,4 @@
-import type { ColorName } from "../model/types";
+import type { ColorName, TextColor } from "../model/types";
 
 /**
  * Diagram style tokens, taken from the visualisation style guide.
@@ -47,15 +47,9 @@ export function tint(color: ColorName, saturation: number): string {
   return `#${channel(0)}${channel(1)}${channel(2)}`.toUpperCase();
 }
 
-/** Black or white, whichever reads better on `background` (WCAG relative luminance). */
-export function readableOn(background: string): string {
-  const linear = (i: number) => {
-    const c = Number.parseInt(background.slice(1 + 2 * i, 3 + 2 * i), 16) / 255;
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  const luminance = 0.2126 * linear(0) + 0.7152 * linear(1) + 0.0722 * linear(2);
-  // Equal contrast against black and white lies at a luminance of about 0.18.
-  return luminance < 0.18 ? "#FFFFFF" : "#000000";
+/** Fill of text set to black or white. */
+export function textFill(color: TextColor): string {
+  return color === "white" ? colours.paper : colours.diagram;
 }
 
 /** Editor only colours. Never part of the diagram itself. */

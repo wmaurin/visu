@@ -1,6 +1,6 @@
 import type { Rect } from "../core/geometry";
 import { renderIcon, type IconDef } from "../core/svg";
-import { COLOR_NAMES, type ColorName } from "../model/types";
+import { COLOR_NAMES, type ColorName, type TextColor } from "../model/types";
 import { PALETTE, tint } from "../render/theme";
 import type { Canvas } from "./canvas";
 
@@ -288,6 +288,24 @@ const BOLD_ICON: IconDef = [
 /** Bold on or off for the whole text of an item. */
 export function boldToggle<T extends { readonly bold: boolean }>(write: (item: T, bold: boolean) => void): Control<T> {
   return toggle<T>("Bold", BOLD_ICON, (item) => item.bold, write);
+}
+
+// Lucide "contrast"
+const CONTRAST_ICON: IconDef = [
+  ["circle", { cx: 12, cy: 12, r: 10 }],
+  ["path", { d: "M12 18a6 6 0 0 0 0-12v12z" }],
+];
+
+/** White or black text for the whole item. */
+export function whiteTextToggle<T extends { readonly textColor: TextColor }>(
+  write: (item: T, textColor: TextColor) => void,
+): Control<T> {
+  return toggle<T>(
+    "White text",
+    CONTRAST_ICON,
+    (item) => item.textColor === "white",
+    (item, white) => write(item, white ? "white" : "black"),
+  );
 }
 
 /** Button with icon and text that runs an action on the item. */
