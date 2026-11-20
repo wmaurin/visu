@@ -5,7 +5,7 @@ import type { LineLabel } from "../model/types";
 import { FloatingBar } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 import type { Handler } from "./handler";
-import { fontSizeField, tagField, tagOverlay } from "./tag";
+import { fontSizeField, tagBoldToggle, tagField, tagOverlay } from "./tag";
 
 /** Line labels: slide along their line, font size in the bar, double-click to edit. */
 export function labelHandler(ctx: AppContext): Handler<LineLabel> {
@@ -17,7 +17,10 @@ export function labelHandler(ctx: AppContext): Handler<LineLabel> {
 
   return {
     cursor: "move",
-    bar: new FloatingBar<LineLabel>(ctx.canvas, "Label format", [fontSizeField(ctx, "labels")]),
+    bar: new FloatingBar<LineLabel>(ctx.canvas, "Label format", [
+      fontSizeField(ctx, "labels"),
+      tagBoldToggle(ctx, "labels"),
+    ]),
     bounds: (l) => labelBox(diagram.doc, l),
     overlay: (l) => tagOverlay(labelBox(diagram.doc, l)),
 

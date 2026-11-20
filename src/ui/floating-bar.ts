@@ -260,6 +260,36 @@ export function colorField<T>(
   };
 }
 
+/** On/off button for a yes/no property of the item, e.g. bold. */
+export function toggle<T>(
+  label: string,
+  icon: IconDef,
+  read: (item: T) => boolean,
+  write: (item: T, value: boolean) => void,
+): Control<T> {
+  return (current) => {
+    const el = button("tool");
+    el.title = label;
+    el.setAttribute("aria-label", label);
+    el.append(renderIcon(icon));
+    el.addEventListener("click", () => {
+      const item = current();
+      if (item) write(item, !read(item));
+    });
+    return { el, sync: (item) => el.setAttribute("aria-pressed", String(read(item))) };
+  };
+}
+
+// Lucide "bold"
+const BOLD_ICON: IconDef = [
+  ["path", { d: "M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" }],
+];
+
+/** Bold on or off for the whole text of an item. */
+export function boldToggle<T extends { readonly bold: boolean }>(write: (item: T, bold: boolean) => void): Control<T> {
+  return toggle<T>("Bold", BOLD_ICON, (item) => item.bold, write);
+}
+
 /** Button with icon and text that runs an action on the item. */
 export function action<T>(label: string, icon: IconDef, run: (item: T) => void): Control<T> {
   return (current) => {

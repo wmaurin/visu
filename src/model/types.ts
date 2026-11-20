@@ -34,6 +34,8 @@ export interface RectShape extends Rect {
   readonly valign: VAlign;
   /** In px, like every other diagram unit. */
   readonly fontSize: number;
+  /** All text in the rectangle is bold, or none. */
+  readonly bold: boolean;
   /** Border colour. The fill is this colour mixed with white. */
   readonly color: ColorName;
   /** Fill strength, 0 (white) to 100 (full colour). */
@@ -78,6 +80,7 @@ export interface LineLabel {
   readonly t: number;
   /** In px. The tag around the text scales with it. */
   readonly fontSize: number;
+  readonly bold: boolean;
 }
 
 /**
@@ -92,6 +95,7 @@ export interface FreeText {
   readonly text: string;
   /** In px. The box around the text scales with it. */
   readonly fontSize: number;
+  readonly bold: boolean;
   readonly align: HAlign;
   readonly valign: VAlign;
   /** Rectangle this text sits in, or null at the top level. */

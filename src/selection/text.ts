@@ -9,7 +9,7 @@ import { dropdown, FloatingBar } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 import { H_ALIGN, V_ALIGN } from "./align";
 import type { Handler } from "./handler";
-import { fontSizeField, tagField, tagOverlay } from "./tag";
+import { fontSizeField, tagBoldToggle, tagField, tagOverlay } from "./tag";
 
 /**
  * Free texts: move on the grid, font size and alignment in the bar,
@@ -24,6 +24,7 @@ export function textHandler(ctx: AppContext): Handler<FreeText> {
     cursor: "move",
     bar: new FloatingBar<FreeText>(ctx.canvas, "Text format", [
       fontSizeField(ctx, "texts"),
+      tagBoldToggle(ctx, "texts"),
       dropdown("Horizontal alignment", H_ALIGN, (t) => t.align, (t, align) => set(t, realign(t, align, t.valign))),
       dropdown("Vertical alignment", V_ALIGN, (t) => t.valign, (t, valign) => set(t, realign(t, t.align, valign))),
     ]),

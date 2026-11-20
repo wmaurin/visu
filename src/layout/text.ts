@@ -50,27 +50,27 @@ export function tagBox(
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
-function measurer(fontSize: number): (s: string) => number {
+function measurer(fontSize: number, bold: boolean): (s: string) => number {
   measureCtx ??= document.createElement("canvas").getContext("2d");
   const ctx = measureCtx;
   // Rough fallback if no 2D context is available.
-  if (!ctx) return (s) => s.length * fontSize * 0.55;
-  ctx.font = cssFont(fontSize);
+  if (!ctx) return (s) => s.length * fontSize * (bold ? 0.6 : 0.55);
+  ctx.font = cssFont(fontSize, bold);
   return (s) => ctx.measureText(s).width;
 }
 
 /** Width of a single line of sans text. */
-export function textWidth(text: string, fontSize: number): number {
-  return measurer(fontSize)(text);
+export function textWidth(text: string, fontSize: number, bold = false): number {
+  return measurer(fontSize, bold)(text);
 }
 
 /**
  * Greedy word wrap. Explicit newlines always break. A single word wider
  * than the line is broken between characters, matching the editor's
- * `overflow-wrap: anywhere`.
+ * `overflow-wrap: anywhere`. Bold text is measured bold, as it runs wider.
  */
-export function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
-  const measure = measurer(fontSize);
+export function wrapText(text: string, maxWidth: number, fontSize: number, bold = false): string[] {
+  const measure = measurer(fontSize, bold);
   const lines: string[] = [];
 
   for (const paragraph of text.split("\n")) {

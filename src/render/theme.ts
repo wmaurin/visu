@@ -83,8 +83,15 @@ export function lineHeightFor(fontSize: number): number {
   return Math.round(fontSize * 1.4);
 }
 
-export function cssFont(fontSize: number): string {
-  return `${textStyle.fontWeight} ${fontSize}px ${font.sans}`;
+/** Weight of text marked bold. */
+export const BOLD_WEIGHT = 700;
+
+export function fontWeight(bold: boolean): number {
+  return bold ? BOLD_WEIGHT : textStyle.fontWeight;
+}
+
+export function cssFont(fontSize: number, bold = false): string {
+  return `${fontWeight(bold)} ${fontSize}px ${font.sans}`;
 }
 
 /** Connection line, the style guide's `link` class. */

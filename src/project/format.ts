@@ -1,4 +1,4 @@
-import { arr, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
+import { arr, bool, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
 import {
   COLOR_NAMES,
   type Doc,
@@ -55,6 +55,7 @@ const rect = obj<RectShape>({
   align: H_ALIGN,
   valign: V_ALIGN,
   fontSize: FONT_SIZE,
+  bold: bool,
   color: COLOR,
   saturation: SATURATION,
   parentId: PARENT,
@@ -82,7 +83,7 @@ const line = obj<LineShape>({
   endCap: CAP,
 });
 
-const label = obj<LineLabel>({ id: ID, lineId: ID, text: str(MAX_TEXT), t: num(0, 1), fontSize: FONT_SIZE });
+const label = obj<LineLabel>({ id: ID, lineId: ID, text: str(MAX_TEXT), t: num(0, 1), fontSize: FONT_SIZE, bold: bool });
 
 const text = obj<FreeText>({
   id: ID,
@@ -90,6 +91,7 @@ const text = obj<FreeText>({
   y: COORD,
   text: str(MAX_TEXT),
   fontSize: FONT_SIZE,
+  bold: bool,
   align: H_ALIGN,
   valign: V_ALIGN,
   parentId: PARENT,

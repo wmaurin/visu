@@ -38,6 +38,11 @@ export function oneOf<const T extends string | number>(...allowed: T[]): Check<T
   };
 }
 
+export const bool: Check<boolean> = (v, path) => {
+  if (typeof v !== "boolean") fail(path, "expected true or false");
+  return v;
+};
+
 /** The value checked by `check`, or null. */
 export function nullable<T>(check: Check<T>): Check<T | null> {
   return (v, path) => (v === null ? null : check(v, path));

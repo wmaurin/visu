@@ -46,6 +46,7 @@ export class TextTool implements Tool {
         y: point.y,
         text: "",
         fontSize: tagStyle.defaultFontSize,
+        bold: false,
         align: "left",
         valign: "top",
         parentId: null,

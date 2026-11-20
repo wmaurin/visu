@@ -8,6 +8,7 @@ import {
   colours,
   DASH,
   font,
+  fontWeight,
   frameStyle,
   lineHeightFor,
   linkStyle,
@@ -25,7 +26,7 @@ function renderText(shape: RectShape): SVGTextElement {
   const { padding } = textStyle;
   const { fontSize } = shape;
   const lineHeight = lineHeightFor(fontSize);
-  const lines = wrapText(shape.text, Math.max(1, shape.width - 2 * padding), fontSize);
+  const lines = wrapText(shape.text, Math.max(1, shape.width - 2 * padding), fontSize, shape.bold);
   const blockHeight = lines.length * lineHeight;
 
   const top = {
@@ -48,7 +49,7 @@ function renderText(shape: RectShape): SVGTextElement {
       "text-anchor": TEXT_ANCHOR[shape.align],
       "font-family": font.sans,
       "font-size": fontSize,
-      "font-weight": textStyle.fontWeight,
+      "font-weight": fontWeight(shape.bold),
       // Switches to white on dark fills, so text stays readable.
       fill: readableOn(shapeFill(shape)),
       style: "white-space: pre",
@@ -129,6 +130,7 @@ function renderTag(
     // Baseline of a glyph vertically centred in the tag.
     y: box.y + box.height / 2 + item.fontSize * 0.36,
     "font-size": item.fontSize,
+    "font-weight": fontWeight(item.bold),
     style: "white-space: pre",
   });
   text.textContent = item.text;

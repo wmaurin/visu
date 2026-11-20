@@ -92,6 +92,7 @@ export function rectTool(ctx: AppContext): BoxTool<"shapes"> {
       align: "center",
       valign: "middle",
       fontSize: textStyle.defaultFontSize,
+      bold: false,
       // Black border on a white fill, as before colours existed.
       color: "black",
       saturation: 0,

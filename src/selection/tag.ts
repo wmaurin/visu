@@ -4,8 +4,8 @@ import { setAttrs } from "../core/svg";
 import { anchoredBox, tagHeight, tagWidth } from "../layout/text";
 import type { HAlign, Item, VAlign } from "../model/types";
 import { outline, SELECTION_PADDING } from "../render/overlay";
-import { colours, font, textStyle, ui } from "../render/theme";
-import { numberField, type Control } from "../ui/floating-bar";
+import { colours, font, fontWeight, textStyle, ui } from "../render/theme";
+import { boldToggle, numberField, type Control } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 
 /**
@@ -34,6 +34,10 @@ export function fontSizeField<T extends TagItem>(ctx: AppContext, kind: TagKind)
     read: (t) => t.fontSize,
     write: (t, fontSize) => ctx.diagram.update(kind, t.id, { fontSize }),
   });
+}
+
+export function tagBoldToggle<T extends TagItem>(ctx: AppContext, kind: TagKind): Control<T> {
+  return boldToggle<T>((t, bold) => ctx.diagram.update(kind, t.id, { bold }));
 }
 
 export function tagOverlay(box: Rect | null): SVGElement[] {
@@ -71,6 +75,7 @@ export function tagField(ctx: AppContext, kind: TagKind, id: string, anchor: () 
       const width = Math.max(tagWidth(value, fontSize), MIN_EDIT_WIDTH_EM * fontSize);
       const box = anchoredBox(a.point, width, tagHeight(fontSize), a.align, a.valign);
       field.style.fontSize = `${fontSize}px`;
+      field.style.fontWeight = String(fontWeight(item.bold));
       field.style.textAlign = a.align;
       setAttrs(frame, { ...box });
       return true;
