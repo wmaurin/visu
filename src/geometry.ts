@@ -10,8 +10,11 @@ export interface Rect {
   height: number;
 }
 
-/** Snap step in diagram units. The style guide places everything on multiples of 8. */
-export const GRID = 8;
+/**
+ * Snap step and grid dot spacing in diagram units. Must stay a multiple
+ * of 8, the base unit of the style guide.
+ */
+export const GRID = 16;
 
 /** Smallest width and height a shape may have. */
 export const MIN_SHAPE_SIZE = GRID;
