@@ -4,6 +4,50 @@ export interface SettingsCategory {
   readonly id: string;
   readonly label: string;
   readonly icon: IconDef;
+  /** Controls shown for the category, e.g. from `rangeSetting`. */
+  readonly controls?: readonly HTMLElement[];
+}
+
+/** A setting as a control sees it: current value, change, change notice. */
+export interface SettingBinding<V> {
+  read(): V;
+  write(value: V): void;
+  subscribe(listener: () => void): unknown;
+}
+
+export interface RangeSpec {
+  readonly label: string;
+  readonly min: number;
+  readonly max: number;
+  readonly unit: string;
+}
+
+/** Slider with label and current value. Follows the setting, also when changed elsewhere. */
+export function rangeSetting(spec: RangeSpec, binding: SettingBinding<number>): HTMLElement {
+  const input = document.createElement("input");
+  Object.assign(input, { type: "range", min: spec.min, max: spec.max, step: 1 });
+  input.setAttribute("aria-label", spec.label);
+
+  const name = document.createElement("span");
+  name.textContent = spec.label;
+  const value = document.createElement("output");
+
+  const sync = () => {
+    input.value = String(binding.read());
+    value.textContent = `${binding.read()} ${spec.unit}`;
+  };
+  input.addEventListener("input", () => binding.write(Number(input.value)));
+  binding.subscribe(sync);
+  sync();
+
+  const head = document.createElement("div");
+  head.className = "setting-head";
+  head.append(name, value);
+
+  const row = document.createElement("label");
+  row.className = "setting";
+  row.append(head, input);
+  return row;
 }
 
 // Lucide "settings"
@@ -108,6 +152,10 @@ export class SettingsMenu {
 
     const heading = document.createElement("h3");
     heading.textContent = category.label;
+    if (category.controls?.length) {
+      this.content.replaceChildren(heading, ...category.controls);
+      return;
+    }
     const empty = document.createElement("p");
     empty.className = "settings-empty";
     empty.textContent = "No settings yet.";

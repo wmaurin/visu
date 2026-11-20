@@ -12,7 +12,8 @@ import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
 import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
-import { SettingsMenu } from "./ui/settings";
+import { bind, createSettings } from "./settings";
+import { rangeSetting, SettingsMenu } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
 
 function requireElement(id: string): HTMLElement {
@@ -43,7 +44,12 @@ const ctx: AppContext = {
   diagram,
   selection: new Observable<Ref | null>(null, sameRef),
   editor: new InlineEditor(canvas, diagram, render),
+  settings: createSettings(),
 };
+
+const applySettings = () => canvas.setGridSaturation(ctx.settings.get().gridSaturation);
+ctx.settings.subscribe(applySettings);
+applySettings();
 
 const tools: readonly Tool[] = [
   new SelectTool(ctx),
@@ -61,7 +67,20 @@ new SettingsMenu(requireElement("app"), [
     // Lucide "sliders-horizontal"
     icon: [["path", { d: "M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4" }]],
   },
+  {
+    id: "appearance",
+    label: "Appearance",
+    // Lucide "sun"
+    icon: [
+      ["circle", { cx: 12, cy: 12, r: 4 }],
+      ["path", { d: "M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" }],
+    ],
+    controls: [
+      rangeSetting({ label: "Grid saturation", min: 0, max: 100, unit: "%" }, bind(ctx.settings, "gridSaturation")),
+    ],
+  },
 ]);
+
 let active: Tool = tools[0]!;
 
 const commands = createCommands(ctx);

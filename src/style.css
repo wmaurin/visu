@@ -155,6 +155,31 @@ body {
   color: var(--muted);
 }
 
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.setting-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.setting-head output {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.setting input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
 .settings-content .settings-empty {
   margin-top: 12px;
   font-style: italic;

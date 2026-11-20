@@ -28,6 +28,13 @@ export class Canvas {
   readonly frameLayer: SVGGElement;
   readonly documentLayer: SVGGElement;
   readonly overlayLayer: SVGGElement;
+  /** The dot the grid pattern repeats. Black, its opacity sets the saturation. */
+  private readonly gridDot = svgEl("circle", {
+    cx: GRID_DOT_SIZE / 2,
+    cy: GRID_DOT_SIZE / 2,
+    r: GRID_DOT_SIZE / 2,
+    fill: colours.diagram,
+  });
 
   /** `host` is the positioned HTML container, also used for floating UI. */
   constructor(readonly host: HTMLElement) {
@@ -43,14 +50,7 @@ export class Canvas {
         height: GRID,
         patternUnits: "userSpaceOnUse",
       },
-      [
-        svgEl("circle", {
-          cx: GRID_DOT_SIZE / 2,
-          cy: GRID_DOT_SIZE / 2,
-          r: GRID_DOT_SIZE / 2,
-          fill: colours.borderStrong,
-        }),
-      ],
+      [this.gridDot],
     );
 
     const grid = svgEl("rect", {
@@ -101,6 +101,11 @@ export class Canvas {
     const screen = new DOMPoint(p.x, p.y).matrixTransform(ctm ?? undefined);
     const hostBox = this.host.getBoundingClientRect();
     return { x: screen.x - hostBox.left, y: screen.y - hostBox.top };
+  }
+
+  /** 0 hides the grid, 100 draws black dots. */
+  setGridSaturation(percent: number): void {
+    this.gridDot.setAttribute("fill-opacity", String(percent / 100));
   }
 
   setCursor(cursor: string): void {
