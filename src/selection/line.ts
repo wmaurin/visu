@@ -7,6 +7,7 @@ import { connectionTarget, resolve, route } from "../model/queries";
 import type { Cap, LineShape, Routing } from "../model/types";
 import { fractionAlong } from "../layout/path";
 import { anchorHints, HANDLE_HIT_SLOP, highlight, roundHandle, ROUND_HANDLE_RADIUS } from "../render/overlay";
+import { tagStyle } from "../render/theme";
 import type { Gesture } from "../tools/tool";
 import { dropdown, FloatingBar, type Choice } from "../ui/floating-bar";
 import { within, type Handler } from "./handler";
@@ -79,7 +80,13 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
       const pts = points(l);
       if (!pts) return;
       const ref = { kind: "labels", id: newId() } as const;
-      diagram.add("labels", { id: ref.id, lineId: l.id, text: "", t: fractionAlong(pts, p.raw) });
+      diagram.add("labels", {
+        id: ref.id,
+        lineId: l.id,
+        text: "",
+        t: fractionAlong(pts, p.raw),
+        fontSize: tagStyle.defaultFontSize,
+      });
       ctx.selection.set(ref);
       ctx.editor.open(ref, labelField(ctx, ref.id));
     },

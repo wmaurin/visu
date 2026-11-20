@@ -78,7 +78,9 @@ function renderLabel(doc: Doc, label: LineLabel): SVGElement[] {
   if (!box) return [];
   const text = svgEl("text", {
     x: box.x + box.width / 2,
-    y: box.y + box.height / 2 + 4,
+    // Baseline of a glyph vertically centred in the tag.
+    y: box.y + box.height / 2 + label.fontSize * 0.36,
+    "font-size": label.fontSize,
     style: "white-space: pre",
     ...tagStyle.text,
   });

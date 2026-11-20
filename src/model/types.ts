@@ -47,6 +47,8 @@ export interface LineLabel {
   readonly lineId: string;
   readonly text: string;
   readonly t: number;
+  /** In px. The tag around the text scales with it. */
+  readonly fontSize: number;
 }
 
 /**

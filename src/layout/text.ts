@@ -1,21 +1,25 @@
 import type { Point, Rect } from "../core/geometry";
 import { cssFont } from "../render/theme";
 
-/** Tag height from the style guide. */
-export const TAG_HEIGHT = 20;
-
 /**
- * Tag width from the style guide: characters × 6.6 + 16, rounded to an
- * even number. Fits the 11px monospace label text.
+ * Tag size from the style guide, scaled with the font size. At the guide's
+ * 11px it gives width = characters × 6.6 + 16 and height = 20. The margin
+ * around the text stays fixed: 8px left and right, 4.5px top and bottom.
+ * Monospace glyphs are 0.6 em wide.
  */
-export function tagWidth(text: string): number {
-  return Math.ceil((text.length * 6.6 + 16) / 2) * 2;
+export function tagHeight(fontSize: number): number {
+  return fontSize + 9;
+}
+
+export function tagWidth(text: string, fontSize: number): number {
+  return Math.ceil((text.length * fontSize * 0.6 + 16) / 2) * 2;
 }
 
 /** Box of a tag centred on `centre`. */
-export function tagBox(centre: Point, text: string): Rect {
-  const width = tagWidth(text);
-  return { x: centre.x - width / 2, y: centre.y - TAG_HEIGHT / 2, width, height: TAG_HEIGHT };
+export function tagBox(centre: Point, text: string, fontSize: number): Rect {
+  const width = tagWidth(text, fontSize);
+  const height = tagHeight(fontSize);
+  return { x: centre.x - width / 2, y: centre.y - height / 2, width, height };
 }
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;

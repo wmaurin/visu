@@ -52,6 +52,7 @@ export const linkStyle = {
 
 /** Link label, the style guide's `tag` and `tag-text` classes. */
 export const tagStyle = {
+  defaultFontSize: 11,
   box: {
     fill: colours.paper,
     stroke: colours.border,
@@ -60,7 +61,6 @@ export const tagStyle = {
   },
   text: {
     "font-family": font.mono,
-    "font-size": 11,
     fill: colours.ink2,
     "text-anchor": "middle",
   },

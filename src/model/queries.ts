@@ -58,7 +58,7 @@ export function labelBox(doc: Doc, label: LineLabel): Rect | null {
   const line = byId(doc.lines, label.lineId);
   const points = line && route(doc, line);
   if (!points || label.text === "") return null;
-  return tagBox(pointAlong(points, label.t), label.text);
+  return tagBox(pointAlong(points, label.t), label.text, label.fontSize);
 }
 
 /** Topmost shape under the point, i.e. the last one drawn. */
