@@ -1,12 +1,12 @@
 import type { AppContext } from "../context";
-import { MIN_SHAPE_SIZE, rectFromPoints, type Rect } from "../core/geometry";
+import { rectFromPoints, type Rect } from "../core/geometry";
 import type { IconDef } from "../core/svg";
 import { newId, type Patch } from "../model/diagram";
 import { nextFrameName } from "../model/queries";
 import type { Item } from "../model/types";
 import { sizeReadout } from "../render/overlay";
 import { textStyle } from "../render/theme";
-import type { BoxKind } from "../selection/box";
+import { SIZE_STEP, type BoxKind } from "../selection/box";
 import type { CanvasPointer } from "../ui/canvas";
 import { GestureTool, type Gesture } from "./tool";
 
@@ -21,10 +21,10 @@ interface BoxToolConfig<C extends BoxKind> {
 }
 
 /**
- * Draws a box by dragging. Corners snap to the grid. Shift constrains to a
- * square. The item is real from the first move, so what you see while
- * dragging is the result. Drags below the minimum size are discarded,
- * a kept box ends up selected.
+ * Draws a box by dragging from a grid point. Width and height follow the
+ * kind's size step. Shift constrains to a square. The item is real from
+ * the first move, so what you see while dragging is the result. Drags
+ * below one step are discarded, a kept box ends up selected.
  */
 export class BoxTool<C extends BoxKind> extends GestureTool {
   readonly id: string;
@@ -47,17 +47,23 @@ export class BoxTool<C extends BoxKind> extends GestureTool {
     const overlay = canvas.overlay();
     const id = newId();
 
+    const step = SIZE_STEP[kind];
+    // Rounds to the size step, down to zero, so a tiny drag creates nothing.
+    const toStep = (d: number) => Math.sign(d) * Math.round(Math.abs(d) / step) * step;
+
     return {
       move: ({ point, event }) => {
-        const bounds = rectFromPoints(start, point, event.shiftKey);
+        const corner = { x: start.x + toStep(point.x - start.x), y: start.y + toStep(point.y - start.y) };
+        const bounds = rectFromPoints(start, corner, event.shiftKey);
+        overlay.replaceChildren(sizeReadout(bounds));
+        if (bounds.width === 0 || bounds.height === 0) return;
         // Every box kind extends Rect, which TypeScript cannot see through C.
         if (diagram.get(kind, id)) diagram.update(kind, id, bounds as Patch<C>);
         else diagram.add(kind, create(id, bounds));
-        overlay.replaceChildren(sizeReadout(bounds));
       },
       end: () => {
         const box = diagram.get(kind, id);
-        const kept = !!box && box.width >= MIN_SHAPE_SIZE && box.height >= MIN_SHAPE_SIZE;
+        const kept = !!box && box.width >= step && box.height >= step;
         if (kept) selection.set({ kind, id });
         return kept;
       },

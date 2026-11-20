@@ -1,5 +1,5 @@
 import type { AppContext } from "../context";
-import { inflate, MIN_SHAPE_SIZE, type Point, type Rect } from "../core/geometry";
+import { GRID, inflate, type Point, type Rect } from "../core/geometry";
 import type { Item } from "../model/types";
 import { HANDLE_HIT_SLOP, HANDLE_SIZE, outline, SELECTION_PADDING, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
@@ -8,6 +8,18 @@ import { within, type Handler } from "./handler";
 
 /** Item kinds that are rectangles on the grid: moved, resized, snapped. */
 export type BoxKind = "shapes" | "frames";
+
+/**
+ * Width and height are multiples of this step, which is also the minimum
+ * size. Shapes use two grid steps, so their centre always lies on a grid
+ * point and lines can attach there. Frames need no centre.
+ */
+export const SIZE_STEP: Record<BoxKind, number> = { shapes: 2 * GRID, frames: GRID };
+
+/** A length rounded to the size step, never below one step. */
+export function snapSize(length: number, step: number): number {
+  return Math.max(step, Math.round(length / step) * step);
+}
 
 type HandleId = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
 
@@ -68,7 +80,8 @@ function resize(ctx: AppContext, kind: BoxKind, origin: Item<BoxKind>, handle: H
   const overlay = ctx.canvas.overlay();
   return {
     move: ({ point }) => {
-      const bounds = resizeBounds(origin, handle, point.x - start.point.x, point.y - start.point.y);
+      const delta = { x: point.x - start.point.x, y: point.y - start.point.y };
+      const bounds = resizeBounds(origin, handle, delta, SIZE_STEP[kind]);
       ctx.diagram.update(kind, origin.id, bounds);
       overlay.replaceChildren(sizeReadout(bounds));
     },
@@ -78,18 +91,22 @@ function resize(ctx: AppContext, kind: BoxKind, origin: Item<BoxKind>, handle: H
 
 /**
  * Moves the edges named by the handle by the given delta. The opposite
- * edges stay fixed and the box never shrinks below MIN_SHAPE_SIZE.
+ * edges stay fixed. The resulting size snaps to the size step, so a box
+ * that started off the step gets onto it with its first resize.
  */
-function resizeBounds(origin: Rect, handle: HandleId, dx: number, dy: number): Rect {
-  let left = origin.x;
-  let top = origin.y;
-  let right = origin.x + origin.width;
-  let bottom = origin.y + origin.height;
+function resizeBounds(origin: Rect, handle: HandleId, delta: Point, step: number): Rect {
+  let { x, y, width, height } = origin;
 
-  if (handle.includes("w")) left = Math.min(left + dx, right - MIN_SHAPE_SIZE);
-  if (handle.includes("e")) right = Math.max(right + dx, left + MIN_SHAPE_SIZE);
-  if (handle.includes("n")) top = Math.min(top + dy, bottom - MIN_SHAPE_SIZE);
-  if (handle.includes("s")) bottom = Math.max(bottom + dy, top + MIN_SHAPE_SIZE);
+  if (handle.includes("w")) {
+    width = snapSize(width - delta.x, step);
+    x = origin.x + origin.width - width;
+  }
+  if (handle.includes("e")) width = snapSize(width + delta.x, step);
+  if (handle.includes("n")) {
+    height = snapSize(height - delta.y, step);
+    y = origin.y + origin.height - height;
+  }
+  if (handle.includes("s")) height = snapSize(height + delta.y, step);
 
-  return { x: left, y: top, width: right - left, height: bottom - top };
+  return { x, y, width, height };
 }

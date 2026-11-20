@@ -16,9 +16,6 @@ export interface Rect {
  */
 export const GRID = 16;
 
-/** Smallest width and height a shape may have. */
-export const MIN_SHAPE_SIZE = GRID;
-
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
