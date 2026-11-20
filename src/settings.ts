@@ -22,7 +22,12 @@ const FILE_VERSION = 1;
 /** Settings files are tiny. Anything larger is not one. */
 const MAX_FILE_BYTES = 64 * 1024;
 
-export const SETTINGS_FILE = { name: "settings.json", type: "application/json", maxBytes: MAX_FILE_BYTES };
+export const SETTINGS_FILE = {
+  name: "settings.json",
+  type: "application/json",
+  accept: ".json,application/json",
+  maxBytes: MAX_FILE_BYTES,
+};
 
 /**
  * Takes the known keys with valid values from untrusted input and the rest

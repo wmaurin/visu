@@ -12,6 +12,7 @@ import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
 import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
+import { projectBar } from "./ui/project-bar";
 import { bind, createSettings } from "./settings";
 import { rangeSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
@@ -85,12 +86,15 @@ new SettingsMenu(requireElement("app"), settingsCategories, settingsFileActions(
 let active: Tool = tools[0]!;
 
 const commands = createCommands(ctx);
+projectBar(requireElement("app"), commands);
 const keymap: Record<string, Command> = {
   escape: () => !!active.cancel?.() || commands.clearSelection(),
   delete: commands.deleteSelection,
   backspace: commands.deleteSelection,
   "mod+c": commands.copy,
   "mod+v": commands.paste,
+  "mod+o": commands.importProject,
+  "mod+s": commands.exportProject,
   ...Object.fromEntries(tools.map((tool) => [tool.shortcut, () => (activate(tool), true)])),
 };
 
