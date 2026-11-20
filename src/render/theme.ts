@@ -52,6 +52,9 @@ export const linkStyle = {
   "stroke-width": 1.25,
 } as const;
 
+/** Dash pattern of the style guide's `dashed` class. */
+export const DASH = "4 3";
+
 /** Link label, the style guide's `tag` and `tag-text` classes. */
 export const tagStyle = {
   defaultFontSize: 11,

@@ -5,7 +5,7 @@ import type { Rect } from "../core/geometry";
 import { FRAME_TITLE_SIZE, labelBox, layering, route, textBox } from "../model/queries";
 import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
 import { markerAttrs } from "./markers";
-import { colours, font, frameStyle, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
+import { colours, DASH, font, frameStyle, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = { left: "start", center: "middle", right: "end" };
 
@@ -69,6 +69,7 @@ function renderLine(doc: Doc, line: LineShape): SVGElement[] {
       "data-id": line.id,
       d: pathData(points),
       ...linkStyle,
+      ...(line.style === "dashed" ? { "stroke-dasharray": DASH } : {}),
       ...markerAttrs(line.startCap, line.endCap),
     }),
   ];

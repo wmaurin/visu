@@ -62,6 +62,7 @@ const line = obj<LineShape>({
   from: endpoint,
   to: endpoint,
   routing: oneOf("straight", "orthogonal"),
+  style: oneOf("solid", "dashed"),
   startCap: CAP,
   endCap: CAP,
 });

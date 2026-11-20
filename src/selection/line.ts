@@ -4,7 +4,7 @@ import type { IconDef } from "../core/svg";
 import type { Patch } from "../model/diagram";
 import { newId } from "../model/diagram";
 import { connectionTarget, resolve, route } from "../model/queries";
-import type { Cap, LineShape, Routing } from "../model/types";
+import type { Cap, LineShape, LineStyle, Routing } from "../model/types";
 import { fractionAlong } from "../layout/path";
 import { anchorHints, HANDLE_HIT_SLOP, highlight, roundHandle, ROUND_HANDLE_RADIUS } from "../render/overlay";
 import { tagStyle } from "../render/theme";
@@ -32,6 +32,11 @@ const END_CAP: ReadonlyArray<Choice<Cap>> = [
   { value: "arrow", label: "Arrow", icon: [["path", { d: "M4 12h16M15 7l5 5-5 5" }]] },
 ];
 
+const STYLE: ReadonlyArray<Choice<LineStyle>> = [
+  { value: "solid", label: "Solid", icon: [["path", { d: "M4 12h16" }]] },
+  { value: "dashed", label: "Dashed", icon: [["path", { d: "M4 12h3M10.5 12h3M17 12h3" }]] },
+];
+
 const ROUTING: ReadonlyArray<Choice<Routing>> = [
   { value: "straight", label: "Straight", icon: [["path", { d: "M6 18L18 6" }], ...DOTS] },
   { value: "orthogonal", label: "Orthogonal", icon: [["path", { d: "M6.5 19H12V5h5.5" }], ...DOTS] },
@@ -51,6 +56,7 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
     bar: new FloatingBar<LineShape>(canvas, "Line format", [
       dropdown("Line start", START_CAP, (l) => l.startCap, (l, startCap) => set(l, { startCap })),
       dropdown("Line end", END_CAP, (l) => l.endCap, (l, endCap) => set(l, { endCap })),
+      dropdown("Style", STYLE, (l) => l.style, (l, style) => set(l, { style })),
       dropdown("Routing", ROUTING, (l) => l.routing, (l, routing) => set(l, { routing })),
     ]),
 

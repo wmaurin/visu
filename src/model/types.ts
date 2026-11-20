@@ -4,6 +4,8 @@ export type HAlign = "left" | "center" | "right";
 export type VAlign = "top" | "middle" | "bottom";
 export type Side = "n" | "e" | "s" | "w";
 export type Routing = "straight" | "orthogonal";
+/** Solid for requests and flows, dashed for lookups, control plane and async paths. */
+export type LineStyle = "solid" | "dashed";
 /** How a line end is drawn. */
 export type Cap = "none" | "arrow";
 
@@ -35,6 +37,7 @@ export interface LineShape {
   readonly from: Endpoint;
   readonly to: Endpoint;
   readonly routing: Routing;
+  readonly style: LineStyle;
   readonly startCap: Cap;
   readonly endCap: Cap;
 }

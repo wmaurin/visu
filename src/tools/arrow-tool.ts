@@ -11,6 +11,7 @@ import { GestureTool, type Gesture } from "./tool";
 /** New lines follow the style guide: orthogonal flows with an arrow at the end. */
 const NEW_LINE: Omit<LineShape, "id" | "from" | "to"> = {
   routing: "orthogonal",
+  style: "solid",
   startCap: "none",
   endCap: "arrow",
 };
