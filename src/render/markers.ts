@@ -20,7 +20,7 @@ export function arrowMarker(): SVGMarkerElement {
       markerUnits: "userSpaceOnUse",
       orient: "auto-start-reverse",
     },
-    [svgEl("path", { d: "M1 1.5 L9 5 L1 8.5 Z", fill: colours.muted })],
+    [svgEl("path", { d: "M1 1.5 L9 5 L1 8.5 Z", fill: colours.diagram })],
   );
 }
 

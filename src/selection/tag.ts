@@ -57,7 +57,7 @@ export function tagField(ctx: AppContext, kind: TagKind, id: string, anchor: () 
       input.value = text;
       input.spellcheck = false;
       input.setAttribute("aria-label", "Text");
-      Object.assign(input.style, { fontFamily: font.mono, color: colours.ink2, borderColor: ui.selection });
+      Object.assign(input.style, { fontFamily: font.mono, color: colours.diagram, borderColor: ui.selection });
       return { root: input, field: input };
     },
 

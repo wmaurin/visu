@@ -4,6 +4,8 @@
  * carries the styling without depending on the app stylesheet.
  */
 export const colours = {
+  /** Every stroke and text of the diagram itself. */
+  diagram: "#000000",
   ink: "#0F172A",
   ink2: "#334155",
   ink3: "#475569",
@@ -31,7 +33,7 @@ export const textStyle = {
   maxFontSize: 96,
   fontWeight: 400,
   padding: 8,
-  fill: colours.ink,
+  fill: colours.diagram,
 } as const;
 
 /** Line height grows with the font size. 13px gives the guide's 18px. */
@@ -46,7 +48,7 @@ export function cssFont(fontSize: number): string {
 /** Connection line, the style guide's `link` class. */
 export const linkStyle = {
   fill: "none",
-  stroke: colours.muted,
+  stroke: colours.diagram,
   "stroke-width": 1.25,
 } as const;
 
@@ -55,13 +57,13 @@ export const tagStyle = {
   defaultFontSize: 11,
   box: {
     fill: colours.paper,
-    stroke: colours.border,
+    stroke: colours.diagram,
     "stroke-width": 1,
     rx: 2,
   },
   text: {
     "font-family": font.mono,
-    fill: colours.ink2,
+    fill: colours.diagram,
     "text-anchor": "middle",
   },
 } as const;
@@ -76,7 +78,7 @@ export const frameStyle = {
 
 export const nodeStyle = {
   fill: colours.paper,
-  stroke: colours.borderStrong,
+  stroke: colours.diagram,
   "stroke-width": 1,
   rx: 4,
 } as const;
