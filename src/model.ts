@@ -36,9 +36,14 @@ export interface LineShape {
   readonly from: Endpoint;
   readonly to: Endpoint;
   readonly routing: Routing;
+  readonly startCap: Cap;
+  readonly endCap: Cap;
 }
 
-export type LinePatch = Partial<Pick<LineShape, "routing" | "from" | "to">>;
+/** How a line end is drawn. */
+export type Cap = "none" | "arrow";
+
+export type LinePatch = Partial<Pick<LineShape, "routing" | "from" | "to" | "startCap" | "endCap">>;
 
 type Listener = () => void;
 
@@ -161,9 +166,13 @@ export class Diagram {
       routing: patch.routing ?? line.routing,
       from: patch.from ?? line.from,
       to: patch.to ?? line.to,
+      startCap: patch.startCap ?? line.startCap,
+      endCap: patch.endCap ?? line.endCap,
     };
     const unchanged =
       next.routing === line.routing &&
+      next.startCap === line.startCap &&
+      next.endCap === line.endCap &&
       sameEndpoint(next.from, line.from) &&
       sameEndpoint(next.to, line.to);
     if (unchanged) return;

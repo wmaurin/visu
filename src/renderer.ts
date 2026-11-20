@@ -1,4 +1,5 @@
 import type { Diagram, HAlign, LineShape, RectShape, Shape } from "./model";
+import { markerAttrs } from "./markers";
 import { pathData } from "./routing";
 import { svgEl } from "./svg";
 import { wrapText } from "./text-layout";
@@ -73,7 +74,12 @@ function renderShape(shape: Shape, hideText: boolean): SVGElement {
 function renderLine(diagram: Diagram, line: LineShape): SVGElement | null {
   const points = diagram.route(line);
   if (!points) return null;
-  return svgEl("path", { "data-id": line.id, d: pathData(points), ...linkStyle });
+  return svgEl("path", {
+    "data-id": line.id,
+    d: pathData(points),
+    ...linkStyle,
+    ...markerAttrs(line.startCap, line.endCap),
+  });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { GRID, snapPoint, type Point } from "./geometry";
+import { arrowMarker } from "./markers";
 import { svgEl } from "./svg";
 import { colours } from "./theme";
 
@@ -67,7 +68,7 @@ export class Canvas {
     ]);
 
     this.svg = svgEl("svg", { role: "img", "aria-label": "Diagram canvas" }, [
-      svgEl("defs", {}, [pattern]),
+      svgEl("defs", {}, [pattern, arrowMarker()]),
       svgEl("rect", { width: "100%", height: "100%", fill: colours.paper }),
       this.viewport,
     ]);

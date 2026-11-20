@@ -1,13 +1,16 @@
 import type { CanvasPointer } from "../canvas";
 import { AnchorHints, findTarget, type Target } from "../connect";
-import { newId } from "../model";
+import { markerAttrs } from "../markers";
+import { newId, type Cap } from "../model";
 import { pathData, type Routing } from "../routing";
 import { setAttrs, svgEl, type IconDef } from "../svg";
 import { linkStyle } from "../theme";
 import type { Tool, ToolContext } from "./tool";
 
-/** New lines follow the style guide: orthogonal paths only. */
+/** New lines follow the style guide: orthogonal flows with an arrow at the end. */
 const DEFAULT_ROUTING: Routing = "orthogonal";
+const DEFAULT_START_CAP: Cap = "none";
+const DEFAULT_END_CAP: Cap = "arrow";
 
 /**
  * Draws lines by dragging. Near a shape, every grid point on its border is
@@ -27,7 +30,11 @@ export class ArrowTool implements Tool {
   ];
 
   private start: Target | null = null;
-  private readonly preview = svgEl("path", { ...linkStyle, "stroke-dasharray": "4 3" });
+  private readonly preview = svgEl("path", {
+    ...linkStyle,
+    ...markerAttrs(DEFAULT_START_CAP, DEFAULT_END_CAP),
+    "stroke-dasharray": "4 3",
+  });
   private readonly hints: AnchorHints;
 
   constructor(private readonly ctx: ToolContext) {
@@ -63,6 +70,8 @@ export class ArrowTool implements Tool {
         from: start.end,
         to: end.end,
         routing: DEFAULT_ROUTING,
+        startCap: DEFAULT_START_CAP,
+        endCap: DEFAULT_END_CAP,
       });
     }
     this.update(end);
