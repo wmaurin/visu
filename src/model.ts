@@ -1,5 +1,6 @@
 import { anchorPoint, SIDE_OUT } from "./anchors";
 import { containsPoint, type Point, type Rect } from "./geometry";
+import { pointAlong, tagBox } from "./labels";
 import { computeRoute, distanceToPolyline, type RouteEnd, type Routing } from "./routing";
 
 export type HAlign = "left" | "center" | "right";
@@ -38,10 +39,29 @@ export interface LineShape {
   readonly routing: Routing;
   readonly startCap: Cap;
   readonly endCap: Cap;
+  readonly labels: readonly LineLabel[];
 }
 
 /** How a line end is drawn. */
 export type Cap = "none" | "arrow";
+
+/**
+ * Text on a line. `t` is the fraction of the line's arc length, from 0 at
+ * the start to 1 at the end, so the label keeps its relative place when
+ * the route changes.
+ */
+export interface LineLabel {
+  readonly id: string;
+  readonly text: string;
+  readonly t: number;
+}
+
+export type LabelPatch = Partial<Pick<LineLabel, "text" | "t">>;
+
+export interface LabelRef {
+  readonly line: LineShape;
+  readonly label: LineLabel;
+}
 
 export type LinePatch = Partial<Pick<LineShape, "routing" | "from" | "to" | "startCap" | "endCap">>;
 
@@ -79,6 +99,32 @@ export class Diagram {
         p,
       ),
     );
+  }
+
+  findLabel(id: string): LabelRef | undefined {
+    for (const line of this.lines) {
+      const label = line.labels.find((l) => l.id === id);
+      if (label) return { line, label };
+    }
+    return undefined;
+  }
+
+  /** Box of a label's tag, or null if it is empty or its line cannot be routed. */
+  labelBox(line: LineShape, label: LineLabel): Rect | null {
+    const points = this.route(line);
+    if (!points || label.text === "") return null;
+    return tagBox(pointAlong(points, label.t), label.text);
+  }
+
+  /** Topmost label whose tag contains the point. */
+  labelAt(p: Point): LabelRef | undefined {
+    for (const line of [...this.lines].reverse()) {
+      for (const label of [...line.labels].reverse()) {
+        const box = this.labelBox(line, label);
+        if (box && containsPoint(box, p)) return { line, label };
+      }
+    }
+    return undefined;
   }
 
   /** Topmost line within `tolerance` of the point. */
@@ -129,8 +175,18 @@ export class Diagram {
     this.emit();
   }
 
-  /** Removes a shape or a line. Lines attached to a removed shape go too. */
+  /**
+   * Removes a shape, a line or a label. Lines attached to a removed shape
+   * go too, and so do the labels of a removed line.
+   */
   remove(id: string): void {
+    const found = this.findLabel(id);
+    if (found) {
+      const labels = found.line.labels.filter((l) => l.id !== id);
+      this.replaceLine({ ...found.line, labels });
+      return;
+    }
+
     const attached = (e: Endpoint) => e.kind === "anchor" && e.shapeId === id;
     const shapes = this.shapes.filter((s) => s.id !== id);
     const lines = this.lines.filter((l) => l.id !== id && !attached(l.from) && !attached(l.to));
@@ -138,6 +194,26 @@ export class Diagram {
 
     this.shapes = shapes;
     this.lines = lines;
+    this.emit();
+  }
+
+  addLabel(lineId: string, label: LineLabel): void {
+    const line = this.getLine(lineId);
+    if (line) this.replaceLine({ ...line, labels: [...line.labels, label] });
+  }
+
+  /** Emits only on a real change. */
+  updateLabel(id: string, patch: LabelPatch): void {
+    const found = this.findLabel(id);
+    if (!found) return;
+    const { line, label } = found;
+    const next: LineLabel = { ...label, text: patch.text ?? label.text, t: patch.t ?? label.t };
+    if (next.text === label.text && next.t === label.t) return;
+    this.replaceLine({ ...line, labels: line.labels.map((l) => (l.id === id ? next : l)) });
+  }
+
+  private replaceLine(next: LineShape): void {
+    this.lines = this.lines.map((l) => (l.id === next.id ? next : l));
     this.emit();
   }
 

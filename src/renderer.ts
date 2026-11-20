@@ -3,7 +3,7 @@ import { markerAttrs } from "./markers";
 import { pathData } from "./routing";
 import { svgEl } from "./svg";
 import { wrapText } from "./text-layout";
-import { font, lineHeightFor, linkStyle, nodeStyle, textStyle } from "./theme";
+import { font, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = {
   left: "start",
@@ -82,17 +82,39 @@ function renderLine(diagram: Diagram, line: LineShape): SVGElement | null {
   });
 }
 
+function renderLabels(diagram: Diagram, line: LineShape, hiddenId: string | null): SVGElement[] {
+  return line.labels.flatMap((label) => {
+    if (label.id === hiddenId) return [];
+    const box = diagram.labelBox(line, label);
+    if (!box) return [];
+
+    const text = svgEl("text", {
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2 + 4,
+      style: "white-space: pre",
+      ...tagStyle.text,
+    });
+    text.textContent = label.text;
+    return [svgEl("g", { "data-id": label.id }, [svgEl("rect", { ...box, ...tagStyle.box }), text])];
+  });
+}
+
+export interface RenderOptions {
+  /** Shape whose text is hidden, as the text editor shows it. */
+  readonly editingShapeId: string | null;
+  /** Label that is hidden, as the label editor shows it. */
+  readonly editingLabelId: string | null;
+}
+
 /**
  * Full redraw of the shape layer. Cheap enough until diagrams get large.
  * Lines come first so shapes cover their ends, as the style guide asks.
- * The text of the shape being edited is hidden, as the editor shows it.
+ * Labels come last, so they stay readable where they touch a shape.
  */
-export function renderDiagram(
-  diagram: Diagram,
-  layer: SVGGElement,
-  editingId: string | null = null,
-): void {
-  const lines = diagram.allLines().flatMap((l) => renderLine(diagram, l) ?? []);
-  const shapes = diagram.all().map((s) => renderShape(s, s.id === editingId));
-  layer.replaceChildren(...lines, ...shapes);
+export function renderDiagram(diagram: Diagram, layer: SVGGElement, options: RenderOptions): void {
+  const lines = diagram.allLines();
+  const paths = lines.flatMap((l) => renderLine(diagram, l) ?? []);
+  const shapes = diagram.all().map((s) => renderShape(s, s.id === options.editingShapeId));
+  const labels = lines.flatMap((l) => renderLabels(diagram, l, options.editingLabelId));
+  layer.replaceChildren(...paths, ...shapes, ...labels);
 }

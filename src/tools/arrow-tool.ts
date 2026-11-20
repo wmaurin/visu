@@ -72,6 +72,7 @@ export class ArrowTool implements Tool {
         routing: DEFAULT_ROUTING,
         startCap: DEFAULT_START_CAP,
         endCap: DEFAULT_END_CAP,
+        labels: [],
       });
     }
     this.update(end);

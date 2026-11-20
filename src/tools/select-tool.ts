@@ -2,6 +2,7 @@ import type { CanvasPointer } from "../canvas";
 import { AnchorHints, findTarget } from "../connect";
 import { FormatBar } from "../format-bar";
 import { GRID, MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
+import { fractionAlong } from "../labels";
 import { LineBar } from "../line-bar";
 import { newId, type Endpoint, type LineShape, type Shape } from "../model";
 import { pathData } from "../routing";
@@ -55,6 +56,14 @@ interface ShapeDrag {
   readonly start: Point;
 }
 
+/** Sliding a label along its line. */
+interface LabelDrag {
+  readonly kind: "label";
+  readonly id: string;
+  /** Arc length fraction when the drag started, restored on Escape. */
+  readonly origin: number;
+}
+
 /** Moving one end of a line to another anchor or grid point. */
 interface EndDrag {
   readonly kind: "end";
@@ -64,7 +73,7 @@ interface EndDrag {
   readonly origin: Endpoint;
 }
 
-type Drag = ShapeDrag | EndDrag;
+type Drag = ShapeDrag | EndDrag | LabelDrag;
 
 /**
  * Selects a shape by clicking it, moves it by dragging its body and resizes
@@ -77,6 +86,9 @@ type Drag = ShapeDrag | EndDrag;
  * A selected line shows a handle on each end. Dragging one reconnects that
  * end to another anchor or a free grid point. A floating bar sets how the
  * line is routed.
+ *
+ * Double-clicking a line adds a label at the pointer and edits it.
+ * Double-clicking a label edits it, dragging it slides it along its line.
  *
  * Keyboard: Delete/Backspace removes the selection, Ctrl/Cmd+C copies it
  * and Ctrl/Cmd+V pastes it. The clipboard is internal to the app on purpose,
@@ -150,6 +162,14 @@ export class SelectTool implements Tool {
     this.endHandles.to,
   ]);
 
+  // Label selection
+  private readonly labelOutline = svgEl("rect", {
+    fill: "none",
+    stroke: ui.selection,
+    "stroke-width": 1,
+    rx: 4,
+  });
+
   private readonly formatBar: FormatBar;
   private readonly lineBar: LineBar;
   private readonly hints: AnchorHints;
@@ -166,6 +186,7 @@ export class SelectTool implements Tool {
 
   deactivate(): void {
     this.ctx.textEditor.close();
+    this.ctx.labelEditor.close();
     this.revertDrag();
     this.select(null);
     this.unsubscribe?.();
@@ -192,7 +213,15 @@ export class SelectTool implements Tool {
       return;
     }
 
-    // Shapes are drawn above lines, so they win the hit test.
+    // Labels are drawn on top of everything, so they win the hit test.
+    const labelHit = this.ctx.diagram.labelAt(raw);
+    if (labelHit) {
+      this.select(labelHit.label.id);
+      this.drag = { kind: "label", id: labelHit.label.id, origin: labelHit.label.t };
+      return;
+    }
+
+    // Shapes are drawn above lines, so they win over lines.
     const hit = this.ctx.diagram.shapeAt(raw);
     if (hit) {
       this.select(hit.id);
@@ -212,6 +241,10 @@ export class SelectTool implements Tool {
 
     if (drag.kind === "end") {
       this.moveEnd(drag, point, raw);
+      return;
+    }
+    if (drag.kind === "label") {
+      this.moveLabel(drag, raw);
       return;
     }
 
@@ -235,11 +268,32 @@ export class SelectTool implements Tool {
   }
 
   doubleClick({ raw }: CanvasPointer): void {
-    const hit = this.ctx.diagram.shapeAt(raw);
-    if (!hit) return;
     this.drag = null;
-    this.select(hit.id);
-    this.ctx.textEditor.open(hit.id);
+    const { diagram } = this.ctx;
+
+    const labelHit = diagram.labelAt(raw);
+    if (labelHit) {
+      this.select(labelHit.label.id);
+      this.ctx.labelEditor.open(labelHit.label.id);
+      return;
+    }
+
+    const shape = diagram.shapeAt(raw);
+    if (shape) {
+      this.select(shape.id);
+      this.ctx.textEditor.open(shape.id);
+      return;
+    }
+
+    // A new label where the pointer is, projected onto the line.
+    const line = diagram.lineAt(raw, LINE_HIT_TOLERANCE);
+    const points = line ? diagram.route(line) : null;
+    if (line && points) {
+      const id = newId();
+      diagram.addLabel(line.id, { id, text: "", t: fractionAlong(points, raw) });
+      this.select(id);
+      this.ctx.labelEditor.open(id);
+    }
   }
 
   keyDown(event: KeyboardEvent): boolean {
@@ -283,6 +337,13 @@ export class SelectTool implements Tool {
     this.ctx.diagram.updateLine(drag.id, { [drag.end]: target.end });
   }
 
+  /** Slides the label to the point on its line closest to the pointer. */
+  private moveLabel(drag: LabelDrag, raw: Point): void {
+    const found = this.ctx.diagram.findLabel(drag.id);
+    const points = found ? this.ctx.diagram.route(found.line) : null;
+    if (points) this.ctx.diagram.updateLabel(drag.id, { t: fractionAlong(points, raw) });
+  }
+
   private copy(): boolean {
     const shape = this.selectedShape();
     if (!shape) return false;
@@ -320,6 +381,7 @@ export class SelectTool implements Tool {
     if (handle) return handle.cursor;
     const line = this.selectedLine();
     if (line && this.endAt(line, p)) return "move";
+    if (this.ctx.diagram.labelAt(p)) return "move";
     if (this.ctx.diagram.shapeAt(p)) return "move";
     return this.ctx.diagram.lineAt(p, LINE_HIT_TOLERANCE) ? "pointer" : this.cursor;
   }
@@ -330,6 +392,7 @@ export class SelectTool implements Tool {
     this.drag = null;
     this.hints.clear();
     if (drag.kind === "shape") this.ctx.diagram.setBounds(drag.id, drag.origin);
+    else if (drag.kind === "label") this.ctx.diagram.updateLabel(drag.id, { t: drag.origin });
     else this.ctx.diagram.updateLine(drag.id, { [drag.end]: drag.origin });
     this.renderSelection();
   }
@@ -362,21 +425,42 @@ export class SelectTool implements Tool {
     const shape = this.selectedShape();
     if (shape) {
       this.clearLineSelection();
+      this.labelOutline.remove();
       this.renderShapeSelection(shape);
       return;
     }
-
     this.clearShapeSelection();
+
     const line = this.selectedLine();
     const points = line ? this.ctx.diagram.route(line) : null;
     if (line && points) {
+      this.labelOutline.remove();
       this.renderLineSelection(line, points);
+      return;
+    }
+    this.clearLineSelection();
+
+    const found = this.selectedId ? this.ctx.diagram.findLabel(this.selectedId) : undefined;
+    if (found) {
+      // A new label has no text and so no box until its first edit is done.
+      const box = this.ctx.diagram.labelBox(found.line, found.label);
+      if (box) {
+        setAttrs(this.labelOutline, {
+          x: box.x - SELECTION_PADDING,
+          y: box.y - SELECTION_PADDING,
+          width: box.width + 2 * SELECTION_PADDING,
+          height: box.height + 2 * SELECTION_PADDING,
+        });
+        if (!this.labelOutline.isConnected) this.ctx.canvas.overlayLayer.append(this.labelOutline);
+      } else {
+        this.labelOutline.remove();
+      }
       return;
     }
 
     // The selected item no longer exists.
     this.selectedId = null;
-    this.clearLineSelection();
+    this.labelOutline.remove();
   }
 
   private renderShapeSelection(shape: Shape): void {

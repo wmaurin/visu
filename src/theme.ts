@@ -50,6 +50,22 @@ export const linkStyle = {
   "stroke-width": 1.25,
 } as const;
 
+/** Link label, the style guide's `tag` and `tag-text` classes. */
+export const tagStyle = {
+  box: {
+    fill: colours.paper,
+    stroke: colours.border,
+    "stroke-width": 1,
+    rx: 2,
+  },
+  text: {
+    "font-family": font.mono,
+    "font-size": 11,
+    fill: colours.ink2,
+    "text-anchor": "middle",
+  },
+} as const;
+
 export const nodeStyle = {
   fill: colours.paper,
   stroke: colours.borderStrong,

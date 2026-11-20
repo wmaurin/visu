@@ -1,12 +1,14 @@
 import type { Canvas, CanvasPointer } from "../canvas";
 import type { Diagram } from "../model";
 import type { IconDef } from "../svg";
+import type { LabelEditor } from "../label-editor";
 import type { TextEditor } from "../text-editor";
 
 export interface ToolContext {
   readonly canvas: Canvas;
   readonly diagram: Diagram;
   readonly textEditor: TextEditor;
+  readonly labelEditor: LabelEditor;
 }
 
 export interface Tool {
