@@ -1,12 +1,14 @@
 import type { AppContext } from "../context";
 import { setAttrs } from "../core/svg";
-import { download, exportSvg } from "../export/svg";
+import { download } from "../core/files";
+import { exportSvg } from "../export/svg";
 import { textWidth } from "../layout/text";
 import { FRAME_TITLE_SIZE, frameTitleBox } from "../model/queries";
 import type { ExportFrame } from "../model/types";
 import { colours, font, ui } from "../render/theme";
 import { action, FloatingBar } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
+import { toast } from "../ui/toast";
 import { boxBehaviour } from "./box";
 import type { Handler } from "./handler";
 
@@ -22,9 +24,11 @@ export function frameHandler(ctx: AppContext): Handler<ExportFrame> {
     cursor: "move",
     bar: new FloatingBar<ExportFrame>(ctx.canvas, "Export", [
       // Lucide "download"
-      action("Export SVG", [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]], (f) =>
-        download(fileName(f.name, "svg"), exportSvg(ctx.diagram.doc, f), "image/svg+xml"),
-      ),
+      action("Export SVG", [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]], (f) => {
+        const name = fileName(f.name, "svg");
+        download(name, exportSvg(ctx.diagram.doc, f), "image/svg+xml");
+        toast(`Exported ${name}.`);
+      }),
     ]),
     doubleClick: (f) => ctx.editor.open({ kind: "frames", id: f.id }, nameField(ctx, f.id)),
   };

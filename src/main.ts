@@ -13,7 +13,7 @@ import type { Tool } from "./tools/tool";
 import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
 import { bind, createSettings } from "./settings";
-import { rangeSetting, SettingsMenu } from "./ui/settings";
+import { rangeSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
 
 function requireElement(id: string): HTMLElement {
@@ -60,7 +60,7 @@ const tools: readonly Tool[] = [
 ];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
 
-new SettingsMenu(requireElement("app"), [
+const settingsCategories: SettingsCategory[] = [
   {
     id: "general",
     label: "General",
@@ -79,7 +79,8 @@ new SettingsMenu(requireElement("app"), [
       rangeSetting({ label: "Grid saturation", min: 0, max: 100, unit: "%" }, bind(ctx.settings, "gridSaturation")),
     ],
   },
-]);
+];
+new SettingsMenu(requireElement("app"), settingsCategories, settingsFileActions(ctx.settings));
 
 let active: Tool = tools[0]!;
 

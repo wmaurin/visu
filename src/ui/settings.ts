@@ -1,4 +1,8 @@
+import { download, readTextFile } from "../core/files";
+import type { Observable } from "../core/observable";
 import { renderIcon, type IconDef } from "../core/svg";
+import { exportSettings, importSettings, SETTINGS_FILE, type Settings } from "../settings";
+import { toast } from "./toast";
 
 export interface SettingsCategory {
   readonly id: string;
@@ -50,6 +54,51 @@ export function rangeSetting(spec: RangeSpec, binding: SettingBinding<number>): 
   return row;
 }
 
+// Lucide "upload" and "download"
+const UPLOAD: IconDef = [["path", { d: "M12 3v12M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5" }]];
+const DOWNLOAD: IconDef = [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]];
+
+/** Import and export of the settings as a JSON file. The outcome shows as a toast. */
+export function settingsFileActions(store: Observable<Settings>): HTMLElement {
+  const picker = document.createElement("input");
+  Object.assign(picker, { type: "file", accept: ".json,application/json", hidden: true });
+  picker.addEventListener("change", async () => {
+    const file = picker.files?.[0];
+    // Cleared, so choosing the same file again fires another change.
+    picker.value = "";
+    if (!file) return;
+    try {
+      const rejected = importSettings(store, await readTextFile(file, SETTINGS_FILE.maxBytes));
+      if (rejected.length === 0) toast("Settings imported.");
+      else toast(`Settings imported. Skipped invalid values: ${rejected.join(", ")}.`, "error");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "The file could not be imported.", "error");
+    }
+  });
+
+  const importButton = textButton("Import settings", UPLOAD, () => picker.click());
+  const exportButton = textButton("Export settings", DOWNLOAD, () => {
+    download(SETTINGS_FILE.name, exportSettings(store), SETTINGS_FILE.type);
+    toast(`Exported ${SETTINGS_FILE.name}.`);
+  });
+
+  const footer = document.createElement("footer");
+  footer.className = "settings-footer";
+  footer.append(importButton, exportButton, picker);
+  return footer;
+}
+
+function textButton(label: string, icon: IconDef, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "settings-button";
+  const text = document.createElement("span");
+  text.textContent = label;
+  button.append(renderIcon(icon), text);
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 // Lucide "settings"
 const GEAR: IconDef = [
   [
@@ -72,7 +121,8 @@ export class SettingsMenu {
   private readonly content = document.createElement("section");
   private readonly items: Array<{ category: SettingsCategory; button: HTMLButtonElement }>;
 
-  constructor(host: HTMLElement, categories: readonly SettingsCategory[]) {
+  /** `footer` sits below both columns, e.g. for import and export. */
+  constructor(host: HTMLElement, categories: readonly SettingsCategory[], footer?: HTMLElement) {
     this.trigger = document.createElement("button");
     this.trigger.type = "button";
     this.trigger.className = "tool";
@@ -112,6 +162,7 @@ export class SettingsMenu {
     this.panel.setAttribute("aria-label", "Settings");
     this.panel.hidden = true;
     this.panel.append(title, body);
+    if (footer) this.panel.append(footer);
 
     const dock = document.createElement("div");
     dock.className = "settings";

@@ -26,14 +26,3 @@ export function exportSvg(doc: Doc, area: Rect): string {
   ]);
   return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}\n`;
 }
-
-/** Hands a text file to the browser as a download. */
-export function download(filename: string, text: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  // Give the browser time to start the download before the URL goes.
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
