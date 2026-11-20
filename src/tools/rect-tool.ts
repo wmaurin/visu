@@ -58,7 +58,14 @@ export class RectTool implements Tool {
 
     // Smaller drags count as accidental clicks and create nothing.
     if (rect.width >= MIN_SHAPE_SIZE && rect.height >= MIN_SHAPE_SIZE) {
-      this.ctx.diagram.add({ id: newId(), kind: "rect", ...rect });
+      this.ctx.diagram.add({
+        id: newId(),
+        kind: "rect",
+        ...rect,
+        text: "",
+        align: "center",
+        valign: "middle",
+      });
     }
   }
 

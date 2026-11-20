@@ -7,7 +7,7 @@ export interface CanvasPointer {
   readonly point: Point;
   /** Position in diagram units, unsnapped. */
   readonly raw: Point;
-  readonly event: PointerEvent;
+  readonly event: MouseEvent;
 }
 
 /** Size of a grid dot. It is centred on the grid point. */
@@ -26,7 +26,8 @@ export class Canvas {
   readonly shapeLayer: SVGGElement;
   readonly overlayLayer: SVGGElement;
 
-  constructor(host: HTMLElement) {
+  /** The positioned HTML container, also used for floating UI. */
+  constructor(readonly host: HTMLElement) {
     const pattern = svgEl(
       "pattern",
       {
@@ -74,14 +75,22 @@ export class Canvas {
     host.append(this.svg);
   }
 
-  /** Converts a pointer event from screen to diagram coordinates. */
-  pointer(event: PointerEvent): CanvasPointer {
+  /** Converts a pointer or mouse event from screen to diagram coordinates. */
+  pointer(event: MouseEvent): CanvasPointer {
     const ctm = this.viewport.getScreenCTM();
     const p = ctm
       ? new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
       : new DOMPoint(event.clientX, event.clientY);
     const raw = { x: p.x, y: p.y };
     return { point: snapPoint(raw), raw, event };
+  }
+
+  /** Converts a point from diagram to coordinates relative to `host`. */
+  toHost(p: Point): Point {
+    const ctm = this.viewport.getScreenCTM();
+    const screen = ctm ? new DOMPoint(p.x, p.y).matrixTransform(ctm) : new DOMPoint(p.x, p.y);
+    const hostBox = this.host.getBoundingClientRect();
+    return { x: screen.x - hostBox.left, y: screen.y - hostBox.top };
   }
 
   setCursor(cursor: string): void {

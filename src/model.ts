@@ -1,12 +1,21 @@
 import { containsPoint, type Point, type Rect } from "./geometry";
 
+export type HAlign = "left" | "center" | "right";
+export type VAlign = "top" | "middle" | "bottom";
+
 export interface RectShape extends Rect {
   readonly id: string;
   readonly kind: "rect";
+  readonly text: string;
+  readonly align: HAlign;
+  readonly valign: VAlign;
 }
 
 /** Union of all shape kinds. Extend as new tools arrive. */
 export type Shape = RectShape;
+
+/** Fields a caller may change. Identity and kind are fixed. */
+export type ShapePatch = Partial<Omit<Shape, "id" | "kind">>;
 
 type Listener = () => void;
 
@@ -33,22 +42,27 @@ export class Diagram {
     this.emit();
   }
 
-  moveTo(id: string, x: number, y: number): void {
+  /** Emits only on a real change, so pointer jitter does not trigger redraws. */
+  update(id: string, patch: ShapePatch): void {
     const shape = this.get(id);
-    if (shape) this.setBounds(id, { x, y, width: shape.width, height: shape.height });
+    if (!shape) return;
+
+    const changes = Object.entries(patch).filter(
+      ([key, value]) => value !== undefined && value !== shape[key as keyof Shape],
+    );
+    if (changes.length === 0) return;
+
+    const next = { ...shape, ...Object.fromEntries(changes) } as Shape;
+    this.shapes = this.shapes.map((s) => (s.id === id ? next : s));
+    this.emit();
   }
 
-  /** Emits only on a real change, so pointer jitter does not trigger redraws. */
+  moveTo(id: string, x: number, y: number): void {
+    this.update(id, { x, y });
+  }
+
   setBounds(id: string, { x, y, width, height }: Rect): void {
-    const shape = this.get(id);
-    if (
-      !shape ||
-      (shape.x === x && shape.y === y && shape.width === width && shape.height === height)
-    ) {
-      return;
-    }
-    this.shapes = this.shapes.map((s) => (s.id === id ? { ...s, x, y, width, height } : s));
-    this.emit();
+    this.update(id, { x, y, width, height });
   }
 
   subscribe(listener: Listener): () => void {

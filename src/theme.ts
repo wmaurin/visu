@@ -24,6 +24,15 @@ export const font = {
   mono: 'Consolas, "Courier New", monospace',
 } as const;
 
+/** Text inside a box. Shared by the SVG renderer and the HTML editor. */
+export const textStyle = {
+  fontSize: 13,
+  fontWeight: 400,
+  lineHeight: 18,
+  padding: 8,
+  fill: colours.ink,
+} as const;
+
 export const nodeStyle = {
   fill: colours.paper,
   stroke: colours.borderStrong,

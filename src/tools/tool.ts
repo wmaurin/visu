@@ -1,10 +1,12 @@
 import type { Canvas, CanvasPointer } from "../canvas";
 import type { Diagram } from "../model";
 import type { IconDef } from "../svg";
+import type { TextEditor } from "../text-editor";
 
 export interface ToolContext {
   readonly canvas: Canvas;
   readonly diagram: Diagram;
+  readonly textEditor: TextEditor;
 }
 
 export interface Tool {
@@ -24,6 +26,7 @@ export interface Tool {
   pointerUp?(p: CanvasPointer): void;
   /** Interaction interrupted by the system, e.g. lost pointer capture. */
   pointerCancel?(): void;
+  doubleClick?(p: CanvasPointer): void;
 
   /** Returns true when the key was handled. */
   keyDown?(event: KeyboardEvent): boolean;

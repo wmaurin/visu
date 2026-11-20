@@ -1,3 +1,4 @@
+import { AlignBar } from "../align-bar";
 import type { CanvasPointer } from "../canvas";
 import { MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
 import { setAttrs, svgEl, type IconDef } from "../svg";
@@ -48,6 +49,8 @@ interface Drag {
  * it by dragging one of the eight handles. All changes happen in snapped
  * steps, so shapes stay on the grid. Escape aborts a running drag and
  * restores the shape, otherwise it clears the selection.
+ * Double-clicking a shape edits its text. While a shape is selected, a
+ * floating bar sets its text alignment.
  */
 export class SelectTool implements Tool {
   readonly id = "select";
@@ -93,14 +96,18 @@ export class SelectTool implements Tool {
     fill: colours.muted,
   });
   private readonly selectionGroup = svgEl("g", {}, [this.outline, ...this.handleEls.values()]);
+  private readonly alignBar: AlignBar;
 
-  constructor(private readonly ctx: ToolContext) {}
+  constructor(private readonly ctx: ToolContext) {
+    this.alignBar = new AlignBar(ctx.canvas, ctx.diagram);
+  }
 
   activate(): void {
     this.unsubscribe ??= this.ctx.diagram.subscribe(() => this.renderSelection());
   }
 
   deactivate(): void {
+    this.ctx.textEditor.close();
     this.revertDrag();
     this.select(null);
     this.unsubscribe?.();
@@ -151,6 +158,14 @@ export class SelectTool implements Tool {
     this.revertDrag();
   }
 
+  doubleClick({ raw }: CanvasPointer): void {
+    const hit = this.ctx.diagram.shapeAt(raw);
+    if (!hit) return;
+    this.drag = null;
+    this.select(hit.id);
+    this.ctx.textEditor.open(hit.id);
+  }
+
   keyDown(event: KeyboardEvent): boolean {
     if (event.key !== "Escape") return false;
 
@@ -195,8 +210,13 @@ export class SelectTool implements Tool {
       this.selectedId = null;
       this.selectionGroup.remove();
       this.readout.remove();
+      this.alignBar.hide();
       return;
     }
+
+    // The bar would only get in the way while dragging.
+    if (this.drag) this.alignBar.hide();
+    else this.alignBar.show(shape);
 
     const box = outlineBox(shape);
     setAttrs(this.outline, { ...box });
