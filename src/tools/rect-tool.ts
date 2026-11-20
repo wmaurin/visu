@@ -1,12 +1,9 @@
 import type { CanvasPointer } from "../canvas";
-import { GRID, rectFromPoints, type Point, type Rect } from "../geometry";
+import { MIN_SHAPE_SIZE, rectFromPoints, type Point, type Rect } from "../geometry";
 import { newId } from "../model";
 import { setAttrs, svgEl, type IconDef } from "../svg";
 import { colours, font, nodeStyle } from "../theme";
 import type { Tool, ToolContext } from "./tool";
-
-/** Smaller drags count as accidental clicks and create nothing. */
-const MIN_SIZE = GRID;
 
 interface Draft {
   readonly start: Point;
@@ -59,7 +56,8 @@ export class RectTool implements Tool {
     const rect = rectFromPoints(this.draft.start, point, event.shiftKey);
     this.discard();
 
-    if (rect.width >= MIN_SIZE && rect.height >= MIN_SIZE) {
+    // Smaller drags count as accidental clicks and create nothing.
+    if (rect.width >= MIN_SHAPE_SIZE && rect.height >= MIN_SHAPE_SIZE) {
       this.ctx.diagram.add({ id: newId(), kind: "rect", ...rect });
     }
   }

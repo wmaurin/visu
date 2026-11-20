@@ -13,6 +13,9 @@ export interface Rect {
 /** Snap step in diagram units. The style guide places everything on multiples of 8. */
 export const GRID = 8;
 
+/** Smallest width and height a shape may have. */
+export const MIN_SHAPE_SIZE = GRID;
+
 export function snap(value: number, step = GRID): number {
   return Math.round(value / step) * step;
 }

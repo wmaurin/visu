@@ -1,24 +1,53 @@
 import type { CanvasPointer } from "../canvas";
-import type { Point } from "../geometry";
+import { MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
 import { setAttrs, svgEl, type IconDef } from "../svg";
-import { ui } from "../theme";
+import { colours, font, ui } from "../theme";
 import type { Tool, ToolContext } from "./tool";
 
 /** Gap between a shape and its selection outline. */
 const SELECTION_PADDING = 3;
+/** Edge length of a resize handle. */
+const HANDLE_SIZE = 8;
+/** Extra grab margin around a handle, so it is easy to hit. */
+const HANDLE_HIT_SLOP = 3;
+
+type HandleId = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
+
+interface Handle {
+  readonly id: HandleId;
+  /** Position along the outline, 0 = left/top, 1 = right/bottom. */
+  readonly fx: 0 | 0.5 | 1;
+  readonly fy: 0 | 0.5 | 1;
+  readonly cursor: string;
+}
+
+/** Corners come first so they win when handles overlap on tiny shapes. */
+const HANDLES: readonly Handle[] = [
+  { id: "nw", fx: 0, fy: 0, cursor: "nwse-resize" },
+  { id: "ne", fx: 1, fy: 0, cursor: "nesw-resize" },
+  { id: "se", fx: 1, fy: 1, cursor: "nwse-resize" },
+  { id: "sw", fx: 0, fy: 1, cursor: "nesw-resize" },
+  { id: "n", fx: 0.5, fy: 0, cursor: "ns-resize" },
+  { id: "e", fx: 1, fy: 0.5, cursor: "ew-resize" },
+  { id: "s", fx: 0.5, fy: 1, cursor: "ns-resize" },
+  { id: "w", fx: 0, fy: 0.5, cursor: "ew-resize" },
+];
 
 interface Drag {
   readonly id: string;
-  /** Shape position when the drag started. */
-  readonly origin: Point;
+  /** null moves the shape, otherwise the handle being dragged. */
+  readonly handle: Handle | null;
+  /** Shape bounds when the drag started. */
+  readonly origin: Rect;
   /** Snapped pointer position when the drag started. */
   readonly start: Point;
 }
 
 /**
- * Selects a shape by clicking it and moves it by dragging. The shape moves
- * in snapped steps, so it stays on the grid. Escape aborts a running drag
- * and puts the shape back, otherwise it clears the selection.
+ * Selects a shape by clicking it, moves it by dragging its body and resizes
+ * it by dragging one of the eight handles. All changes happen in snapped
+ * steps, so shapes stay on the grid. Escape aborts a running drag and
+ * restores the shape, otherwise it clears the selection.
  */
 export class SelectTool implements Tool {
   readonly id = "select";
@@ -38,12 +67,32 @@ export class SelectTool implements Tool {
   private selectedId: string | null = null;
   private drag: Drag | null = null;
   private unsubscribe: (() => void) | null = null;
+
   private readonly outline = svgEl("rect", {
     fill: "none",
     stroke: ui.selection,
     "stroke-width": 1,
     rx: 6,
   });
+  private readonly handleEls = new Map<HandleId, SVGRectElement>(
+    HANDLES.map((h) => [
+      h.id,
+      svgEl("rect", {
+        width: HANDLE_SIZE,
+        height: HANDLE_SIZE,
+        rx: 2,
+        fill: colours.paper,
+        stroke: ui.selection,
+        "stroke-width": 1,
+      }),
+    ]),
+  );
+  private readonly readout = svgEl("text", {
+    "font-family": font.mono,
+    "font-size": 11,
+    fill: colours.muted,
+  });
+  private readonly selectionGroup = svgEl("g", {}, [this.outline, ...this.handleEls.values()]);
 
   constructor(private readonly ctx: ToolContext) {}
 
@@ -61,25 +110,41 @@ export class SelectTool implements Tool {
   pointerDown({ point, raw, event }: CanvasPointer): void {
     if (event.button !== 0) return;
 
+    const selected = this.selectedShape();
+    const handle = selected ? handleAt(selected, raw) : null;
+    if (selected && handle) {
+      this.drag = { id: selected.id, handle, origin: boundsOf(selected), start: point };
+      this.renderSelection();
+      return;
+    }
+
     const hit = this.ctx.diagram.shapeAt(raw);
     this.select(hit?.id ?? null);
     if (hit) {
-      this.drag = { id: hit.id, origin: { x: hit.x, y: hit.y }, start: point };
+      this.drag = { id: hit.id, handle: null, origin: boundsOf(hit), start: point };
     }
   }
 
   pointerMove({ point, raw }: CanvasPointer): void {
     if (!this.drag) {
-      this.ctx.canvas.setCursor(this.ctx.diagram.shapeAt(raw) ? "move" : this.cursor);
+      this.ctx.canvas.setCursor(this.hoverCursor(raw));
       return;
     }
 
-    const { id, origin, start } = this.drag;
-    this.ctx.diagram.moveTo(id, origin.x + point.x - start.x, origin.y + point.y - start.y);
+    const { id, handle, origin, start } = this.drag;
+    const dx = point.x - start.x;
+    const dy = point.y - start.y;
+
+    if (handle) {
+      this.ctx.diagram.setBounds(id, resizeBounds(origin, handle.id, dx, dy));
+    } else {
+      this.ctx.diagram.moveTo(id, origin.x + dx, origin.y + dy);
+    }
   }
 
   pointerUp(): void {
     this.drag = null;
+    this.renderSelection();
   }
 
   pointerCancel(): void {
@@ -100,11 +165,23 @@ export class SelectTool implements Tool {
     return false;
   }
 
+  private hoverCursor(p: Point): string {
+    const selected = this.selectedShape();
+    const handle = selected ? handleAt(selected, p) : null;
+    if (handle) return handle.cursor;
+    return this.ctx.diagram.shapeAt(p) ? "move" : this.cursor;
+  }
+
   private revertDrag(): void {
     if (!this.drag) return;
     const { id, origin } = this.drag;
     this.drag = null;
-    this.ctx.diagram.moveTo(id, origin.x, origin.y);
+    this.ctx.diagram.setBounds(id, origin);
+    this.renderSelection();
+  }
+
+  private selectedShape() {
+    return this.selectedId ? this.ctx.diagram.get(this.selectedId) : undefined;
   }
 
   private select(id: string | null): void {
@@ -113,19 +190,83 @@ export class SelectTool implements Tool {
   }
 
   private renderSelection(): void {
-    const shape = this.selectedId ? this.ctx.diagram.get(this.selectedId) : undefined;
+    const shape = this.selectedShape();
     if (!shape) {
       this.selectedId = null;
-      this.outline.remove();
+      this.selectionGroup.remove();
+      this.readout.remove();
       return;
     }
 
-    setAttrs(this.outline, {
-      x: shape.x - SELECTION_PADDING,
-      y: shape.y - SELECTION_PADDING,
-      width: shape.width + 2 * SELECTION_PADDING,
-      height: shape.height + 2 * SELECTION_PADDING,
-    });
-    if (!this.outline.isConnected) this.ctx.canvas.overlayLayer.append(this.outline);
+    const box = outlineBox(shape);
+    setAttrs(this.outline, { ...box });
+    for (const handle of HANDLES) {
+      const c = handleCentre(shape, handle);
+      setAttrs(this.handleEls.get(handle.id)!, {
+        x: c.x - HANDLE_SIZE / 2,
+        y: c.y - HANDLE_SIZE / 2,
+      });
+    }
+    if (!this.selectionGroup.isConnected) {
+      this.ctx.canvas.overlayLayer.append(this.selectionGroup);
+    }
+
+    // Size readout only while resizing, next to the bottom right corner.
+    if (this.drag?.handle) {
+      setAttrs(this.readout, {
+        x: box.x + box.width + 8,
+        y: box.y + box.height + 16,
+      });
+      this.readout.textContent = `${shape.width} × ${shape.height}`;
+      if (!this.readout.isConnected) this.ctx.canvas.overlayLayer.append(this.readout);
+    } else {
+      this.readout.remove();
+    }
   }
+}
+
+function boundsOf({ x, y, width, height }: Rect): Rect {
+  return { x, y, width, height };
+}
+
+function outlineBox(r: Rect): Rect {
+  return {
+    x: r.x - SELECTION_PADDING,
+    y: r.y - SELECTION_PADDING,
+    width: r.width + 2 * SELECTION_PADDING,
+    height: r.height + 2 * SELECTION_PADDING,
+  };
+}
+
+function handleCentre(r: Rect, h: Handle): Point {
+  const box = outlineBox(r);
+  return { x: box.x + h.fx * box.width, y: box.y + h.fy * box.height };
+}
+
+function handleAt(r: Rect, p: Point): Handle | null {
+  const reach = HANDLE_SIZE / 2 + HANDLE_HIT_SLOP;
+  return (
+    HANDLES.find((h) => {
+      const c = handleCentre(r, h);
+      return Math.abs(p.x - c.x) <= reach && Math.abs(p.y - c.y) <= reach;
+    }) ?? null
+  );
+}
+
+/**
+ * Moves the edges named by the handle by the given delta. The opposite
+ * edges stay fixed and the shape never shrinks below MIN_SHAPE_SIZE.
+ */
+function resizeBounds(origin: Rect, handle: HandleId, dx: number, dy: number): Rect {
+  let left = origin.x;
+  let top = origin.y;
+  let right = origin.x + origin.width;
+  let bottom = origin.y + origin.height;
+
+  if (handle.includes("w")) left = Math.min(left + dx, right - MIN_SHAPE_SIZE);
+  if (handle.includes("e")) right = Math.max(right + dx, left + MIN_SHAPE_SIZE);
+  if (handle.includes("n")) top = Math.min(top + dy, bottom - MIN_SHAPE_SIZE);
+  if (handle.includes("s")) bottom = Math.max(bottom + dy, top + MIN_SHAPE_SIZE);
+
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }

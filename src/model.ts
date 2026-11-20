@@ -35,8 +35,19 @@ export class Diagram {
 
   moveTo(id: string, x: number, y: number): void {
     const shape = this.get(id);
-    if (!shape || (shape.x === x && shape.y === y)) return;
-    this.shapes = this.shapes.map((s) => (s.id === id ? { ...s, x, y } : s));
+    if (shape) this.setBounds(id, { x, y, width: shape.width, height: shape.height });
+  }
+
+  /** Emits only on a real change, so pointer jitter does not trigger redraws. */
+  setBounds(id: string, { x, y, width, height }: Rect): void {
+    const shape = this.get(id);
+    if (
+      !shape ||
+      (shape.x === x && shape.y === y && shape.width === width && shape.height === height)
+    ) {
+      return;
+    }
+    this.shapes = this.shapes.map((s) => (s.id === id ? { ...s, x, y, width, height } : s));
     this.emit();
   }
 
