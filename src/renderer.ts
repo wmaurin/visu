@@ -1,4 +1,5 @@
 import type { Diagram, HAlign, LineShape, RectShape, Shape } from "./model";
+import { pathData } from "./routing";
 import { svgEl } from "./svg";
 import { wrapText } from "./text-layout";
 import { font, lineHeightFor, linkStyle, nodeStyle, textStyle } from "./theme";
@@ -70,10 +71,9 @@ function renderShape(shape: Shape, hideText: boolean): SVGElement {
 }
 
 function renderLine(diagram: Diagram, line: LineShape): SVGElement | null {
-  const ends = diagram.resolveLine(line);
-  if (!ends) return null;
-  const [a, b] = ends;
-  return svgEl("line", { "data-id": line.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y, ...linkStyle });
+  const points = diagram.route(line);
+  if (!points) return null;
+  return svgEl("path", { "data-id": line.id, d: pathData(points), ...linkStyle });
 }
 
 /**

@@ -80,7 +80,7 @@ body {
   height: 20px;
 }
 
-.format-bar {
+.floating-bar {
   position: absolute;
   z-index: 1;
   display: flex;
@@ -93,17 +93,17 @@ body {
   box-shadow: 0 4px 12px rgb(15 23 42 / 0.08);
 }
 
-.format-bar[hidden] {
+.floating-bar[hidden] {
   display: none;
 }
 
-.format-bar .tool {
+.floating-bar .tool {
   width: 30px;
   height: 30px;
   border-radius: 6px;
 }
 
-.format-bar .tool svg {
+.floating-bar .tool svg {
   width: 18px;
   height: 18px;
 }
@@ -153,7 +153,7 @@ body {
   color: var(--muted);
 }
 
-.format-bar .divider {
+.floating-bar .divider {
   width: 1px;
   height: 20px;
   margin: 0 4px;

@@ -1,5 +1,6 @@
-import { anchorPoint, distanceToSegment } from "./anchors";
+import { anchorPoint, SIDE_OUT } from "./anchors";
 import { containsPoint, type Point, type Rect } from "./geometry";
+import { computeRoute, distanceToPolyline, type RouteEnd, type Routing } from "./routing";
 
 export type HAlign = "left" | "center" | "right";
 export type VAlign = "top" | "middle" | "bottom";
@@ -34,7 +35,10 @@ export interface LineShape {
   readonly kind: "line";
   readonly from: Endpoint;
   readonly to: Endpoint;
+  readonly routing: Routing;
 }
+
+export type LinePatch = Partial<Pick<LineShape, "routing">>;
 
 type Listener = () => void;
 
@@ -43,6 +47,8 @@ export class Diagram {
   private shapes: Shape[] = [];
   private lines: LineShape[] = [];
   private readonly listeners = new Set<Listener>();
+  /** Routes per line id. Valid until the next change, as any shape can be an obstacle. */
+  private readonly routeCache = new Map<string, Point[] | null>();
 
   all(): readonly Shape[] {
     return this.shapes;
@@ -73,8 +79,8 @@ export class Diagram {
   /** Topmost line within `tolerance` of the point. */
   lineAt(p: Point, tolerance: number): LineShape | undefined {
     return this.lines.findLast((line) => {
-      const ends = this.resolveLine(line);
-      return ends !== null && distanceToSegment(p, ends[0], ends[1]) <= tolerance;
+      const points = this.route(line);
+      return points !== null && distanceToPolyline(p, points) <= tolerance;
     });
   }
 
@@ -85,10 +91,27 @@ export class Diagram {
     return shape ? anchorPoint(shape, end.side, end.offset) : null;
   }
 
-  resolveLine(line: LineShape): [Point, Point] | null {
-    const a = this.resolve(line.from);
-    const b = this.resolve(line.to);
-    return a && b ? [a, b] : null;
+  /** The polyline a line is drawn along, or null if one of its shapes is gone. */
+  route(line: LineShape): Point[] | null {
+    let points = this.routeCache.get(line.id);
+    if (points === undefined) {
+      points = this.routeBetween(line.from, line.to, line.routing);
+      this.routeCache.set(line.id, points);
+    }
+    return points;
+  }
+
+  /** Routes between two ends without a stored line, e.g. for a drag preview. */
+  routeBetween(from: Endpoint, to: Endpoint, routing: Routing): Point[] | null {
+    const a = this.routeEnd(from);
+    const b = this.routeEnd(to);
+    return a && b ? computeRoute(a, b, routing, this.shapes) : null;
+  }
+
+  private routeEnd(end: Endpoint): RouteEnd | null {
+    const point = this.resolve(end);
+    if (!point) return null;
+    return { point, out: end.kind === "anchor" ? SIDE_OUT[end.side] : null };
   }
 
   add(shape: Shape): void {
@@ -128,6 +151,13 @@ export class Diagram {
     this.emit();
   }
 
+  updateLine(id: string, patch: LinePatch): void {
+    const line = this.getLine(id);
+    if (!line || patch.routing === undefined || patch.routing === line.routing) return;
+    this.lines = this.lines.map((l) => (l.id === id ? { ...l, ...patch } : l));
+    this.emit();
+  }
+
   moveTo(id: string, x: number, y: number): void {
     this.update(id, { x, y });
   }
@@ -142,6 +172,7 @@ export class Diagram {
   }
 
   private emit(): void {
+    this.routeCache.clear();
     for (const listener of this.listeners) listener();
   }
 }

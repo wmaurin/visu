@@ -1,5 +1,6 @@
 import { GRID, snap, type Point, type Rect } from "./geometry";
 import type { Side } from "./model";
+import type { Dir } from "./routing";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -58,11 +59,5 @@ export function allAnchors(r: Rect): Point[] {
   return points;
 }
 
-/** Shortest distance from `p` to the segment a–b. */
-export function distanceToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  const t = lengthSq === 0 ? 0 : clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq, 0, 1);
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
+/** Direction a line leaves an anchor in: straight out of its side. */
+export const SIDE_OUT: Record<Side, Dir> = { e: 0, s: 1, w: 2, n: 3 };

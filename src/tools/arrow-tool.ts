@@ -2,12 +2,15 @@ import { allAnchors, nearestAnchor } from "../anchors";
 import type { CanvasPointer } from "../canvas";
 import { GRID, type Point } from "../geometry";
 import { newId, type Endpoint, type Shape } from "../model";
+import { pathData, type Routing } from "../routing";
 import { setAttrs, svgEl, type IconDef } from "../svg";
 import { colours, linkStyle, ui } from "../theme";
 import type { Tool, ToolContext } from "./tool";
 
 /** How far outside a shape its anchors still catch the pointer. */
 const CATCH_MARGIN = GRID / 2;
+/** New lines follow the style guide: orthogonal paths only. */
+const DEFAULT_ROUTING: Routing = "orthogonal";
 
 interface Target {
   readonly end: Endpoint;
@@ -34,7 +37,7 @@ export class ArrowTool implements Tool {
   ];
 
   private start: Target | null = null;
-  private readonly preview = svgEl("line", { ...linkStyle, "stroke-dasharray": "4 3" });
+  private readonly preview = svgEl("path", { ...linkStyle, "stroke-dasharray": "4 3" });
   private readonly anchors = svgEl("g");
   private readonly marker = svgEl("circle", { r: 4, fill: ui.selection });
 
@@ -62,7 +65,13 @@ export class ArrowTool implements Tool {
 
     const end = this.target(point, raw);
     if (end.point.x !== start.point.x || end.point.y !== start.point.y) {
-      this.ctx.diagram.addLine({ id: newId(), kind: "line", from: start.end, to: end.end });
+      this.ctx.diagram.addLine({
+        id: newId(),
+        kind: "line",
+        from: start.end,
+        to: end.end,
+        routing: DEFAULT_ROUTING,
+      });
     }
     this.update(end);
   }
@@ -116,13 +125,11 @@ export class ArrowTool implements Tool {
     setAttrs(this.marker, { cx: target.point.x, cy: target.point.y });
     if (!this.marker.isConnected) overlay.append(this.marker);
 
-    if (this.start) {
-      setAttrs(this.preview, {
-        x1: this.start.point.x,
-        y1: this.start.point.y,
-        x2: target.point.x,
-        y2: target.point.y,
-      });
+    const route = this.start
+      ? this.ctx.diagram.routeBetween(this.start.end, target.end, DEFAULT_ROUTING)
+      : null;
+    if (route) {
+      setAttrs(this.preview, { d: pathData(route) });
       // Below the anchors, so the dots stay visible.
       if (!this.preview.isConnected) overlay.prepend(this.preview);
     } else {

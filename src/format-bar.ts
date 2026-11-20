@@ -1,12 +1,8 @@
 import type { Canvas } from "./canvas";
+import { barButton, barDivider, createBar, placeBar } from "./floating-bar";
 import type { Diagram, HAlign, RectShape, VAlign } from "./model";
-import { renderIcon, type IconDef } from "./svg";
+import type { IconDef } from "./svg";
 import { textStyle } from "./theme";
-
-/** Distance between the bar and the shape. Clears the selection handles. */
-const GAP = 12;
-/** Minimum distance between the bar and the canvas edge. */
-const EDGE = 8;
 
 type AlignOption =
   | { readonly field: "align"; readonly value: HAlign; readonly label: string; readonly icon: IconDef }
@@ -64,9 +60,7 @@ const V_OPTIONS: readonly AlignOption[] = [
   },
 ];
 
-/**
- * Floating bar above the selected shape. Sets font size and text alignment.
- */
+/** Floating bar above the selected shape. Sets font size and text alignment. */
 export class FormatBar {
   private readonly el: HTMLDivElement;
   private readonly alignButtons: Array<{ option: AlignOption; button: HTMLButtonElement }> = [];
@@ -77,23 +71,18 @@ export class FormatBar {
     private readonly canvas: Canvas,
     private readonly diagram: Diagram,
   ) {
-    this.el = document.createElement("div");
-    this.el.className = "format-bar";
-    this.el.setAttribute("role", "toolbar");
-    this.el.setAttribute("aria-label", "Text format");
-    this.el.hidden = true;
+    this.el = createBar(canvas, "Text format");
 
     const sizeField = this.sizeField();
     this.sizeInput = sizeField.querySelector("input")!;
 
     this.el.append(
       sizeField,
-      divider(),
+      barDivider(),
       ...this.alignGroup(H_OPTIONS),
-      divider(),
+      barDivider(),
       ...this.alignGroup(V_OPTIONS),
     );
-    canvas.host.append(this.el);
   }
 
   show(shape: RectShape): void {
@@ -105,8 +94,7 @@ export class FormatBar {
     if (document.activeElement !== this.sizeInput) {
       this.sizeInput.value = String(shape.fontSize);
     }
-    this.el.hidden = false;
-    this.position(shape);
+    placeBar(this.canvas, this.el, shape);
   }
 
   hide(): void {
@@ -124,7 +112,7 @@ export class FormatBar {
     input.setAttribute("aria-label", "Font size in px");
     input.title = "Font size (px)";
 
-    // Applies valid values live, so typing and the spin buttons both work.
+    // Applies valid values live, so typing and the arrow keys both work.
     input.addEventListener("input", () => {
       const size = parseFontSize(input.value);
       if (size !== null && this.shape) this.diagram.update(this.shape.id, { fontSize: size });
@@ -157,38 +145,12 @@ export class FormatBar {
 
   private alignGroup(options: readonly AlignOption[]): HTMLButtonElement[] {
     return options.map((option) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "tool";
-      button.title = option.label;
-      button.setAttribute("aria-label", option.label);
-      button.setAttribute("aria-pressed", "false");
-      button.append(renderIcon(option.icon));
-
-      // Keeps focus, and so the open text editor, where it is.
-      button.addEventListener("mousedown", (event) => event.preventDefault());
-      button.addEventListener("click", () => {
+      const button = barButton(option.label, option.icon, () => {
         if (this.shape) this.diagram.update(this.shape.id, { [option.field]: option.value });
       });
-
       this.alignButtons.push({ option, button });
       return button;
     });
-  }
-
-  /** Centred above the shape, or below it when there is no room above. */
-  private position(shape: RectShape): void {
-    const top = this.canvas.toHost({ x: shape.x + shape.width / 2, y: shape.y });
-    const bottom = this.canvas.toHost({ x: shape.x, y: shape.y + shape.height });
-    const { offsetWidth: w, offsetHeight: h } = this.el;
-    const maxLeft = this.canvas.host.clientWidth - w - EDGE;
-
-    let y = top.y - GAP - h;
-    if (y < EDGE) y = bottom.y + GAP;
-    const x = Math.min(Math.max(top.x - w / 2, EDGE), maxLeft);
-
-    this.el.style.left = `${x}px`;
-    this.el.style.top = `${y}px`;
   }
 }
 
@@ -198,11 +160,4 @@ function parseFontSize(raw: string): number | null {
   if (!Number.isInteger(value)) return null;
   if (value < textStyle.minFontSize || value > textStyle.maxFontSize) return null;
   return value;
-}
-
-function divider(): HTMLSpanElement {
-  const el = document.createElement("span");
-  el.className = "divider";
-  el.setAttribute("aria-hidden", "true");
-  return el;
 }

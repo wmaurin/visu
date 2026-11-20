@@ -1,4 +1,6 @@
 import { FormatBar } from "../format-bar";
+import { LineBar } from "../line-bar";
+import { pathData } from "../routing";
 import type { CanvasPointer } from "../canvas";
 import { GRID, MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
 import { newId, type Shape } from "../model";
@@ -107,15 +109,19 @@ export class SelectTool implements Tool {
     fill: colours.muted,
   });
   private readonly selectionGroup = svgEl("g", {}, [this.outline, ...this.handleEls.values()]);
-  private readonly lineHighlight = svgEl("line", {
+  private readonly lineHighlight = svgEl("path", {
+    fill: "none",
     stroke: ui.selection,
     "stroke-width": 2,
     "stroke-linecap": "round",
+    "stroke-linejoin": "round",
   });
   private readonly formatBar: FormatBar;
+  private readonly lineBar: LineBar;
 
   constructor(private readonly ctx: ToolContext) {
     this.formatBar = new FormatBar(ctx.canvas, ctx.diagram);
+    this.lineBar = new LineBar(ctx.canvas, ctx.diagram);
   }
 
   activate(): void {
@@ -261,16 +267,17 @@ export class SelectTool implements Tool {
   /** Highlights the selected line, or clears a selection that no longer exists. */
   private renderLineSelection(): void {
     const line = this.selectedId ? this.ctx.diagram.getLine(this.selectedId) : undefined;
-    const ends = line ? this.ctx.diagram.resolveLine(line) : null;
-    if (!ends) {
+    const points = line ? this.ctx.diagram.route(line) : null;
+    if (!line || !points) {
       this.selectedId = null;
       this.lineHighlight.remove();
+      this.lineBar.hide();
       return;
     }
 
-    const [a, b] = ends;
-    setAttrs(this.lineHighlight, { x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+    setAttrs(this.lineHighlight, { d: pathData(points) });
     if (!this.lineHighlight.isConnected) this.ctx.canvas.overlayLayer.append(this.lineHighlight);
+    this.lineBar.show(line, points);
   }
 
   private selectedShape() {
@@ -292,6 +299,7 @@ export class SelectTool implements Tool {
       return;
     }
     this.lineHighlight.remove();
+    this.lineBar.hide();
 
     // The bar would only get in the way while dragging.
     if (this.drag) this.formatBar.hide();
