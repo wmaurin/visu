@@ -12,6 +12,7 @@ import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
 import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
+import { SettingsMenu } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
 
 function requireElement(id: string): HTMLElement {
@@ -52,6 +53,15 @@ const tools: readonly Tool[] = [
   frameTool(ctx),
 ];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
+
+new SettingsMenu(requireElement("app"), [
+  {
+    id: "general",
+    label: "General",
+    // Lucide "sliders-horizontal"
+    icon: [["path", { d: "M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4" }]],
+  },
+]);
 let active: Tool = tools[0]!;
 
 const commands = createCommands(ctx);
