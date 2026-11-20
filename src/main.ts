@@ -17,6 +17,7 @@ import { projectBar } from "./ui/project-bar";
 import { bind, createSettings } from "./settings";
 import { rangeSetting, selectSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
+import { ZOOM_STEP, zoomBar } from "./ui/zoom-bar";
 
 function requireElement(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -109,6 +110,7 @@ let active: Tool = tools[0]!;
 
 const commands = createCommands(ctx);
 projectBar(requireElement("app"), commands);
+zoomBar(requireElement("app"), canvas);
 const keymap: Record<string, Command> = {
   escape: () => !!active.cancel?.() || commands.clearSelection(),
   delete: commands.deleteSelection,
@@ -117,6 +119,12 @@ const keymap: Record<string, Command> = {
   "mod+v": commands.paste,
   "mod+o": commands.importProject,
   "mod+s": commands.exportProject,
+  // Zoom. "+" sits on different keys, with or without Shift, depending on the layout.
+  "mod+0": () => (canvas.zoomTo(1), true),
+  "mod+=": () => (canvas.zoomAt(canvas.centre(), ZOOM_STEP), true),
+  "mod++": () => (canvas.zoomAt(canvas.centre(), ZOOM_STEP), true),
+  "mod+shift++": () => (canvas.zoomAt(canvas.centre(), ZOOM_STEP), true),
+  "mod+-": () => (canvas.zoomAt(canvas.centre(), 1 / ZOOM_STEP), true),
   ...Object.fromEntries(tools.map((tool) => [tool.shortcut, () => (activate(tool), true)])),
 };
 
@@ -136,34 +144,86 @@ function activate(tool: Tool): void {
 }
 
 // Event wiring. Events inside the inline editor belong to the editor.
+// Panning (middle button, or Space with the left button) comes before the tools.
 
 const svg = canvas.svg;
+/** Last pointer position while panning, null otherwise. */
+let panFrom: { x: number; y: number } | null = null;
+let spaceHeld = false;
+
+/** Wheel distance to zoom factor. A typical notch (100 px) zooms by about 16 %. */
+const WHEEL_ZOOM_RATE = 0.0015;
 
 svg.addEventListener("pointerdown", (event) => {
   if (ctx.editor.owns(event.target)) return;
   // Capture keeps the drag alive when the pointer leaves the canvas.
   svg.setPointerCapture(event.pointerId);
+  if (event.button === 1 || (event.button === 0 && spaceHeld)) {
+    // No autoscroll on the middle button.
+    event.preventDefault();
+    panFrom = { x: event.clientX, y: event.clientY };
+    canvas.setCursor("grabbing");
+    return;
+  }
   active.pointerDown?.(canvas.pointer(event));
 });
 
 svg.addEventListener("pointermove", (event) => {
+  if (panFrom) {
+    canvas.panBy(event.clientX - panFrom.x, event.clientY - panFrom.y);
+    panFrom = { x: event.clientX, y: event.clientY };
+    return;
+  }
   if (!ctx.editor.owns(event.target)) active.pointerMove?.(canvas.pointer(event));
 });
 
 svg.addEventListener("pointerup", (event) => {
   if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+  if (panFrom) {
+    panFrom = null;
+    canvas.setCursor(spaceHeld ? "grab" : active.cursor);
+    return;
+  }
   if (!ctx.editor.owns(event.target)) active.pointerUp?.(canvas.pointer(event));
 });
 
-svg.addEventListener("pointercancel", () => active.cancel?.());
+svg.addEventListener("pointercancel", () => {
+  panFrom = null;
+  active.cancel?.();
+});
 
 svg.addEventListener("dblclick", (event) => {
   if (!ctx.editor.owns(event.target)) active.doubleClick?.(canvas.pointer(event));
 });
 
+// Not passive: the page must neither scroll nor zoom the browser (pinch on touchpads sends Ctrl+wheel).
+svg.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    // Line based wheels report lines, not pixels.
+    const delta = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 16 : event.deltaY;
+    canvas.zoomAt(canvas.screenPoint(event), Math.exp(-delta * WHEEL_ZOOM_RATE));
+  },
+  { passive: false },
+);
+
 window.addEventListener("keydown", (event) => {
   if (isEditable(event.target)) return;
+  if (event.key === " ") {
+    // Holding Space turns the pointer into a hand for panning.
+    event.preventDefault();
+    if (!spaceHeld && !panFrom) canvas.setCursor("grab");
+    spaceHeld = true;
+    return;
+  }
   if (keymap[keyId(event)]?.()) event.preventDefault();
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.key !== " ") return;
+  spaceHeld = false;
+  if (!panFrom) canvas.setCursor(active.cursor);
 });
 
 diagram.subscribe(render);

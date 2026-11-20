@@ -1,4 +1,5 @@
 import { grid as gridSize, snapPoint, type Point } from "../core/geometry";
+import { Emitter } from "../core/observable";
 import { setAttrs, svgEl } from "../core/svg";
 import { colours } from "../render/theme";
 
@@ -12,15 +13,40 @@ export interface CanvasPointer {
 
 /** Size of a grid dot. It is centred on the grid point. */
 const GRID_DOT_SIZE = 2;
-/** Large enough to cover any reasonable viewport until panning arrives. */
-const GRID_EXTENT = 100_000;
+/** Covers the reachable area at the smallest zoom. */
+const GRID_EXTENT = 200_000;
+
+export const MIN_ZOOM = 0.1;
+export const MAX_ZOOM = 8;
+/** Share of the remaining way to the target zoom covered per frame. */
+const ZOOM_EASING = 0.3;
+
+/** Pan and zoom: screen = diagram × scale + (x, y), relative to the canvas. */
+interface View {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+}
+
+/** Where an animated zoom is heading, and the point that must stay put. */
+interface ZoomTarget {
+  readonly scale: number;
+  readonly anchorScreen: Point;
+  readonly anchorDiagram: Point;
+}
 
 /**
  * The drawing surface. Layers, bottom to top:
  * grid, export frames, document and overlay (transient editor feedback).
- * Everything sits inside `viewport`, which will later carry pan and zoom.
+ * Everything sits inside `viewport`, which carries pan and zoom. All
+ * conversions go through the viewport's screen matrix, so they stay
+ * right at any zoom. Notifies subscribers when the view changes.
  */
-export class Canvas {
+export class Canvas extends Emitter {
+  private view: View = { x: 0, y: 0, scale: 1 };
+  private target: ZoomTarget | null = null;
+  private frame = 0;
+
   readonly svg: SVGSVGElement;
   readonly viewport: SVGGElement;
   /** Export frames. Separate, so exports never include them. */
@@ -49,6 +75,7 @@ export class Canvas {
 
   /** `host` is the positioned HTML container, also used for floating UI. */
   constructor(readonly host: HTMLElement) {
+    super();
     this.updateGrid();
     const pattern = this.gridPattern;
 
@@ -114,5 +141,82 @@ export class Canvas {
 
   setCursor(cursor: string): void {
     this.svg.style.cursor = cursor;
+  }
+
+  /** Current zoom, 1 is 100 %. The target while a zoom is animating. */
+  get zoom(): number {
+    return this.target?.scale ?? this.view.scale;
+  }
+
+  /** Canvas coordinates of a mouse event, the frame zoom anchors are given in. */
+  screenPoint(event: MouseEvent): Point {
+    const box = this.svg.getBoundingClientRect();
+    return { x: event.clientX - box.left, y: event.clientY - box.top };
+  }
+
+  /** Middle of the visible canvas, the anchor for zoom without a pointer. */
+  centre(): Point {
+    const box = this.svg.getBoundingClientRect();
+    return { x: box.width / 2, y: box.height / 2 };
+  }
+
+  /**
+   * Zooms by `factor`, keeping the diagram point under `anchor` in place.
+   * Eases towards the result over a few frames. Repeated calls while
+   * animating build on the target, so fast wheel turns add up smoothly.
+   */
+  zoomAt(anchor: Point, factor: number): void {
+    const scale = Math.min(Math.max(this.zoom * factor, MIN_ZOOM), MAX_ZOOM);
+    this.target = { scale, anchorScreen: anchor, anchorDiagram: this.toDiagram(anchor) };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      this.step(true);
+    } else if (this.frame === 0) {
+      this.frame = requestAnimationFrame(() => this.step());
+    }
+  }
+
+  /** Sets the zoom to `scale`, keeping the centre in place. */
+  zoomTo(scale: number): void {
+    this.zoomAt(this.centre(), scale / this.zoom);
+  }
+
+  /** Moves the view by a distance in screen pixels. */
+  panBy(dx: number, dy: number): void {
+    this.view = { ...this.view, x: this.view.x + dx, y: this.view.y + dy };
+    // A running zoom keeps its anchor under the moving content.
+    if (this.target) {
+      const { anchorScreen: a } = this.target;
+      this.target = { ...this.target, anchorScreen: { x: a.x + dx, y: a.y + dy } };
+    }
+    this.apply();
+  }
+
+  private toDiagram(p: Point): Point {
+    return { x: (p.x - this.view.x) / this.view.scale, y: (p.y - this.view.y) / this.view.scale };
+  }
+
+  private step(jump = false): void {
+    const target = this.target;
+    this.frame = 0;
+    if (!target) return;
+
+    const eased = this.view.scale + (target.scale - this.view.scale) * ZOOM_EASING;
+    const done = jump || Math.abs(target.scale - eased) < target.scale * 0.001;
+    const scale = done ? target.scale : eased;
+    this.view = {
+      scale,
+      x: target.anchorScreen.x - target.anchorDiagram.x * scale,
+      y: target.anchorScreen.y - target.anchorDiagram.y * scale,
+    };
+    this.apply();
+
+    if (done) this.target = null;
+    else this.frame = requestAnimationFrame(() => this.step());
+  }
+
+  private apply(): void {
+    const { x, y, scale } = this.view;
+    this.viewport.setAttribute("transform", `translate(${x} ${y}) scale(${scale})`);
+    this.emit();
   }
 }

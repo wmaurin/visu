@@ -69,6 +69,46 @@ body {
   gap: 4px;
 }
 
+/* Zoom: bottom left, right of the settings button. */
+.zoom-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 74px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.08);
+}
+
+.zoom-level {
+  min-width: 56px;
+  height: 36px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.zoom-level:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.zoom-level:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .settings {
   bottom: 12px;
 }

@@ -48,6 +48,8 @@ export class SelectTool extends GestureTool {
     };
     ctx.diagram.subscribe(() => this.render());
     ctx.selection.subscribe(() => this.render());
+    // The format bars are HTML on top of the canvas and follow pan and zoom.
+    ctx.canvas.subscribe(() => this.render());
   }
 
   deactivate(): void {
