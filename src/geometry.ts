@@ -1,0 +1,44 @@
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Snap step in diagram units. The style guide places everything on multiples of 8. */
+export const GRID = 8;
+
+export function snap(value: number, step = GRID): number {
+  return Math.round(value / step) * step;
+}
+
+export function snapPoint(p: Point, step = GRID): Point {
+  return { x: snap(p.x, step), y: snap(p.y, step) };
+}
+
+/**
+ * Normalised rectangle spanned by two corner points, independent of drag
+ * direction. With `square` the shorter side grows to match the longer one.
+ */
+export function rectFromPoints(a: Point, b: Point, square = false): Rect {
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+
+  if (square) {
+    const side = Math.max(Math.abs(dx), Math.abs(dy));
+    dx = Math.sign(dx || 1) * side;
+    dy = Math.sign(dy || 1) * side;
+  }
+
+  return {
+    x: Math.min(a.x, a.x + dx),
+    y: Math.min(a.y, a.y + dy),
+    width: Math.abs(dx),
+    height: Math.abs(dy),
+  };
+}

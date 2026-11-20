@@ -1,0 +1,83 @@
+import { GRID, snapPoint, type Point } from "./geometry";
+import { svgEl } from "./svg";
+import { colours } from "./theme";
+
+export interface CanvasPointer {
+  /** Position in diagram units, snapped to the grid. */
+  readonly point: Point;
+  /** Position in diagram units, unsnapped. */
+  readonly raw: Point;
+  readonly event: PointerEvent;
+}
+
+/** Size of a grid dot. It is centred on the grid point. */
+const GRID_DOT_SIZE = 1;
+/** Large enough to cover any reasonable viewport until panning arrives. */
+const GRID_EXTENT = 100_000;
+
+/**
+ * The drawing surface. Layers, bottom to top:
+ * grid, shapes (the document) and overlay (transient tool feedback).
+ * Everything sits inside `viewport`, which will later carry pan and zoom.
+ */
+export class Canvas {
+  readonly svg: SVGSVGElement;
+  readonly viewport: SVGGElement;
+  readonly shapeLayer: SVGGElement;
+  readonly overlayLayer: SVGGElement;
+
+  constructor(host: HTMLElement) {
+    const pattern = svgEl(
+      "pattern",
+      {
+        id: "grid-dots",
+        // Dots sit exactly on the snap points, so spacing must equal GRID.
+        // The offset centres each dot on its grid coordinate.
+        x: -GRID_DOT_SIZE / 2,
+        y: -GRID_DOT_SIZE / 2,
+        width: GRID,
+        height: GRID,
+        patternUnits: "userSpaceOnUse",
+      },
+      [svgEl("rect", { width: GRID_DOT_SIZE, height: GRID_DOT_SIZE, fill: colours.border })],
+    );
+
+    const grid = svgEl("rect", {
+      x: -GRID_EXTENT / 2,
+      y: -GRID_EXTENT / 2,
+      width: GRID_EXTENT,
+      height: GRID_EXTENT,
+      fill: "url(#grid-dots)",
+    });
+
+    this.shapeLayer = svgEl("g", { "data-layer": "shapes" });
+    this.overlayLayer = svgEl("g", { "data-layer": "overlay", "pointer-events": "none" });
+    this.viewport = svgEl("g", { "data-layer": "viewport" }, [
+      grid,
+      this.shapeLayer,
+      this.overlayLayer,
+    ]);
+
+    this.svg = svgEl("svg", { role: "img", "aria-label": "Diagram canvas" }, [
+      svgEl("defs", {}, [pattern]),
+      svgEl("rect", { width: "100%", height: "100%", fill: colours.paper }),
+      this.viewport,
+    ]);
+
+    host.append(this.svg);
+  }
+
+  /** Converts a pointer event from screen to diagram coordinates. */
+  pointer(event: PointerEvent): CanvasPointer {
+    const ctm = this.viewport.getScreenCTM();
+    const p = ctm
+      ? new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
+      : new DOMPoint(event.clientX, event.clientY);
+    const raw = { x: p.x, y: p.y };
+    return { point: snapPoint(raw), raw, event };
+  }
+
+  setCursor(cursor: string): void {
+    this.svg.style.cursor = cursor;
+  }
+}
