@@ -1,8 +1,9 @@
 import { svgEl } from "../core/svg";
 import { pathData } from "../layout/path";
 import { wrapText } from "../layout/text";
-import { labelBox, route } from "../model/queries";
-import type { Doc, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
+import type { Rect } from "../core/geometry";
+import { labelBox, route, textBox } from "../model/queries";
+import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
 import { markerAttrs } from "./markers";
 import { font, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
 
@@ -73,25 +74,29 @@ function renderLine(doc: Doc, line: LineShape): SVGElement[] {
   ];
 }
 
-function renderLabel(doc: Doc, label: LineLabel): SVGElement[] {
-  const box = labelBox(doc, label);
+/**
+ * Text centred in a tag box, shared by line labels and free texts. Labels
+ * draw the box as a frame that covers the line, free texts stay bare.
+ */
+function renderTag(item: LineLabel | FreeText, box: Rect | null, framed: boolean): SVGElement[] {
   if (!box) return [];
   const text = svgEl("text", {
     x: box.x + box.width / 2,
     // Baseline of a glyph vertically centred in the tag.
-    y: box.y + box.height / 2 + label.fontSize * 0.36,
-    "font-size": label.fontSize,
+    y: box.y + box.height / 2 + item.fontSize * 0.36,
+    "font-size": item.fontSize,
     style: "white-space: pre",
     ...tagStyle.text,
   });
-  text.textContent = label.text;
-  return [svgEl("g", { "data-id": label.id }, [svgEl("rect", { ...box, ...tagStyle.box }), text])];
+  text.textContent = item.text;
+  const frame = framed ? [svgEl("rect", { ...box, ...tagStyle.box })] : [];
+  return [svgEl("g", { "data-id": item.id }, [...frame, text])];
 }
 
 /**
  * Full redraw of the document layer. Cheap enough until diagrams get large.
  * Lines come first so shapes cover their ends, as the style guide asks.
- * Labels come last, so they stay readable where they touch a shape.
+ * Labels and texts come last, so they stay readable where they touch a shape.
  * The item being edited hides its text, as the inline editor shows it.
  */
 export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null): void {
@@ -99,6 +104,7 @@ export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null)
   layer.replaceChildren(
     ...doc.lines.flatMap((l) => renderLine(doc, l)),
     ...doc.shapes.map((s) => renderShape(s, hidden("shapes", s.id))),
-    ...doc.labels.flatMap((l) => (hidden("labels", l.id) ? [] : renderLabel(doc, l))),
+    ...doc.labels.flatMap((l) => (hidden("labels", l.id) ? [] : renderTag(l, labelBox(doc, l), true))),
+    ...doc.texts.flatMap((t) => (hidden("texts", t.id) ? [] : renderTag(t, textBox(t), false))),
   );
 }

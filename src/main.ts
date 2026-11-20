@@ -8,6 +8,7 @@ import { renderDiagram } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
 import { RectTool } from "./tools/rect-tool";
 import { SelectTool } from "./tools/select-tool";
+import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
 import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
@@ -43,7 +44,7 @@ const ctx: AppContext = {
   editor: new InlineEditor(canvas, diagram, render),
 };
 
-const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx), new ArrowTool(ctx)];
+const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx), new ArrowTool(ctx), new TextTool(ctx)];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
 let active: Tool = tools[0]!;
 

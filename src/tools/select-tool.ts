@@ -6,6 +6,7 @@ import type { Handler } from "../selection/handler";
 import { labelHandler } from "../selection/label";
 import { lineHandler } from "../selection/line";
 import { shapeHandler } from "../selection/shape";
+import { textHandler } from "../selection/text";
 import type { CanvasPointer } from "../ui/canvas";
 import { GestureTool, type Gesture } from "./tool";
 
@@ -13,7 +14,7 @@ import { GestureTool, type Gesture } from "./tool";
  * Selects, drags and edits items. Generic over item kinds: everything
  * kind specific (handles, drags, bars, double-click) lives in the handlers.
  *
- * Hit order: handles of the selected item, then labels, shapes and lines.
+ * Hit order: handles of the selected item, then texts, labels, shapes and lines.
  */
 export class SelectTool extends GestureTool {
   readonly id = "select";
@@ -36,7 +37,12 @@ export class SelectTool extends GestureTool {
   constructor(ctx: AppContext) {
     super(ctx);
     this.overlay = ctx.canvas.overlay();
-    this.handlers = { shapes: shapeHandler(ctx), lines: lineHandler(ctx), labels: labelHandler(ctx) };
+    this.handlers = {
+      shapes: shapeHandler(ctx),
+      lines: lineHandler(ctx),
+      labels: labelHandler(ctx),
+      texts: textHandler(ctx),
+    };
     ctx.diagram.subscribe(() => this.render());
     ctx.selection.subscribe(() => this.render());
   }

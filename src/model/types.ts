@@ -51,6 +51,16 @@ export interface LineLabel {
   readonly fontSize: number;
 }
 
+/** Free standing text in a tag, centred on (x, y). */
+export interface FreeText {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+  /** In px. The tag around the text scales with it. */
+  readonly fontSize: number;
+}
+
 /**
  * The whole diagram. Immutable: every change produces a new Doc, which
  * makes snapshots, cancel and undo trivial.
@@ -59,6 +69,7 @@ export interface Doc {
   readonly shapes: readonly Shape[];
   readonly lines: readonly LineShape[];
   readonly labels: readonly LineLabel[];
+  readonly texts: readonly FreeText[];
 }
 
 export type Collection = keyof Doc;

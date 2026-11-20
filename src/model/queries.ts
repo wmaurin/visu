@@ -3,7 +3,7 @@ import { anchorPoint, nearestAnchor, SIDE_OUT } from "../layout/anchors";
 import { distanceToPolyline, pointAlong } from "../layout/path";
 import { computeRoute, type RouteEnd } from "../layout/routing";
 import { tagBox } from "../layout/text";
-import type { Doc, Endpoint, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
+import type { Doc, Endpoint, FreeText, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
 
 /**
  * Read-only questions about a document. Pure functions of the Doc, so
@@ -80,8 +80,22 @@ export function labelAt(doc: Doc, p: Point): LineLabel | undefined {
   });
 }
 
-/** The item under the point, in drawing order from the top: labels, shapes, lines. */
+/** Box of a free text's tag, or null while it is empty. */
+export function textBox(text: FreeText): Rect | null {
+  return text.text === "" ? null : tagBox(text, text.text, text.fontSize);
+}
+
+export function textAt(doc: Doc, p: Point): FreeText | undefined {
+  return doc.texts.findLast((t) => {
+    const box = textBox(t);
+    return box !== null && containsPoint(box, p);
+  });
+}
+
+/** The item under the point, in drawing order from the top: texts, labels, shapes, lines. */
 export function pick(doc: Doc, p: Point): Ref | null {
+  const text = textAt(doc, p);
+  if (text) return { kind: "texts", id: text.id };
   const label = labelAt(doc, p);
   if (label) return { kind: "labels", id: label.id };
   const shape = shapeAt(doc, p);

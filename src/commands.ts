@@ -1,10 +1,13 @@
 import type { AppContext } from "./context";
 import { GRID } from "./core/geometry";
 import { newId } from "./model/diagram";
-import type { Shape } from "./model/types";
+import type { FreeText, Shape } from "./model/types";
 
 /** A command reports whether it did anything, so the key press is consumed. */
 export type Command = () => boolean;
+
+/** Items that can be copied: free standing ones, positioned by x and y. */
+type Copied = { readonly kind: "shapes"; readonly item: Shape } | { readonly kind: "texts"; readonly item: FreeText };
 
 /**
  * Keyboard commands on the selection (Command pattern). The clipboard is
@@ -13,7 +16,7 @@ export type Command = () => boolean;
  */
 export function createCommands({ diagram, selection }: AppContext) {
   /** Snapshot taken on copy. Later edits to the original do not affect it. */
-  let clipboard: Shape | null = null;
+  let clipboard: Copied | null = null;
   /** Pastes since the last copy. Each one lands one grid step further. */
   let pastes = 0;
 
@@ -27,9 +30,10 @@ export function createCommands({ diagram, selection }: AppContext) {
 
   const copy: Command = () => {
     const ref = selection.get();
-    const shape = ref?.kind === "shapes" ? diagram.get("shapes", ref.id) : undefined;
-    if (!shape) return false;
-    clipboard = shape;
+    if (ref?.kind !== "shapes" && ref?.kind !== "texts") return false;
+    const item = diagram.get(ref.kind, ref.id);
+    if (!item) return false;
+    clipboard = { kind: ref.kind, item } as Copied;
     pastes = 0;
     return true;
   };
@@ -37,10 +41,13 @@ export function createCommands({ diagram, selection }: AppContext) {
   const paste: Command = () => {
     if (!clipboard) return false;
     pastes += 1;
-    const id = newId();
     const offset = pastes * GRID;
-    diagram.add("shapes", { ...clipboard, id, x: clipboard.x + offset, y: clipboard.y + offset });
-    selection.set({ kind: "shapes", id });
+    const { kind, item } = clipboard;
+    const id = newId();
+    const moved = { ...item, id, x: item.x + offset, y: item.y + offset };
+    if (kind === "shapes") diagram.add(kind, moved as Shape);
+    else diagram.add(kind, moved as FreeText);
+    selection.set({ kind, id });
     return true;
   };
 

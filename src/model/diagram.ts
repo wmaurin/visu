@@ -3,7 +3,7 @@ import type { Collection, Doc, Endpoint, Item, Ref } from "./types";
 
 export type Patch<C extends Collection> = Partial<Omit<Item<C>, "id">>;
 
-const EMPTY: Doc = { shapes: [], lines: [], labels: [] };
+const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [] };
 
 /**
  * The document store. Holds one immutable Doc and replaces it on every
@@ -61,12 +61,11 @@ export class Diagram extends Emitter {
     const detached = (e: Endpoint) => e.kind === "anchor" && !shapes.some((s) => s.id === e.shapeId);
     const lines = doc.lines.filter((l) => keep("lines", l.id) && !detached(l.from) && !detached(l.to));
     const labels = doc.labels.filter((l) => keep("labels", l.id) && lines.some((line) => line.id === l.lineId));
+    const texts = doc.texts.filter((t) => keep("texts", t.id));
 
-    const unchanged =
-      shapes.length === doc.shapes.length &&
-      lines.length === doc.lines.length &&
-      labels.length === doc.labels.length;
-    if (!unchanged) this.restore({ shapes, lines, labels });
+    const next: Doc = { shapes, lines, labels, texts };
+    const unchanged = (Object.keys(next) as Collection[]).every((k) => next[k].length === doc[k].length);
+    if (!unchanged) this.restore(next);
   }
 
   private items<C extends Collection>(kind: C): ReadonlyArray<Item<C>> {
