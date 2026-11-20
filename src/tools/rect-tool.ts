@@ -2,7 +2,7 @@ import type { CanvasPointer } from "../canvas";
 import { MIN_SHAPE_SIZE, rectFromPoints, type Point, type Rect } from "../geometry";
 import { newId } from "../model";
 import { setAttrs, svgEl, type IconDef } from "../svg";
-import { colours, font, nodeStyle } from "../theme";
+import { colours, font, nodeStyle, textStyle } from "../theme";
 import type { Tool, ToolContext } from "./tool";
 
 interface Draft {
@@ -65,6 +65,7 @@ export class RectTool implements Tool {
         text: "",
         align: "center",
         valign: "middle",
+        fontSize: textStyle.defaultFontSize,
       });
     }
   }

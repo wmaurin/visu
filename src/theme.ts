@@ -26,12 +26,22 @@ export const font = {
 
 /** Text inside a box. Shared by the SVG renderer and the HTML editor. */
 export const textStyle = {
-  fontSize: 13,
+  defaultFontSize: 13,
+  minFontSize: 8,
+  maxFontSize: 96,
   fontWeight: 400,
-  lineHeight: 18,
   padding: 8,
   fill: colours.ink,
 } as const;
+
+/** Line height grows with the font size. 13px gives the guide's 18px. */
+export function lineHeightFor(fontSize: number): number {
+  return Math.round(fontSize * 1.4);
+}
+
+export function cssFont(fontSize: number): string {
+  return `${textStyle.fontWeight} ${fontSize}px ${font.sans}`;
+}
 
 export const nodeStyle = {
   fill: colours.paper,

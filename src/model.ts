@@ -9,6 +9,8 @@ export interface RectShape extends Rect {
   readonly text: string;
   readonly align: HAlign;
   readonly valign: VAlign;
+  /** In px, like every other diagram unit. */
+  readonly fontSize: number;
 }
 
 /** Union of all shape kinds. Extend as new tools arrive. */

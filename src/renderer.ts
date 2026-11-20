@@ -1,7 +1,7 @@
 import type { Diagram, HAlign, RectShape, Shape } from "./model";
 import { svgEl } from "./svg";
 import { wrapText } from "./text-layout";
-import { font, nodeStyle, textStyle } from "./theme";
+import { font, lineHeightFor, nodeStyle, textStyle } from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = {
   left: "start",
@@ -10,8 +10,10 @@ const TEXT_ANCHOR: Record<HAlign, string> = {
 };
 
 function renderText(shape: RectShape): SVGTextElement {
-  const { padding, lineHeight, fontSize } = textStyle;
-  const lines = wrapText(shape.text, Math.max(1, shape.width - 2 * padding));
+  const { padding } = textStyle;
+  const { fontSize } = shape;
+  const lineHeight = lineHeightFor(fontSize);
+  const lines = wrapText(shape.text, Math.max(1, shape.width - 2 * padding), fontSize);
   const blockHeight = lines.length * lineHeight;
 
   const top =

@@ -1,7 +1,7 @@
 import type { Canvas } from "./canvas";
 import type { Diagram, HAlign, VAlign } from "./model";
 import { svgEl } from "./svg";
-import { font, textStyle } from "./theme";
+import { cssFont, lineHeightFor, textStyle } from "./theme";
 
 const JUSTIFY: Record<VAlign, string> = {
   top: "flex-start",
@@ -63,7 +63,6 @@ export class TextEditor {
     // until the first character arrives. A placeholder <br> creates the line.
     // innerText reads it as a trailing newline, which close() strips.
     if (shape.text === "") content.append(document.createElement("br"));
-    content.style.font = `${textStyle.fontWeight} ${textStyle.fontSize}px/${textStyle.lineHeight}px ${font.sans}`;
     content.style.color = textStyle.fill;
 
     const box = document.createElement("div");
@@ -143,6 +142,8 @@ export class TextEditor {
     }
     session.box.style.justifyContent = JUSTIFY[shape.valign];
     session.content.style.textAlign = TEXT_ALIGN[shape.align];
+    session.content.style.font = cssFont(shape.fontSize);
+    session.content.style.lineHeight = `${lineHeightFor(shape.fontSize)}px`;
   }
 }
 

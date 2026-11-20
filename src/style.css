@@ -80,7 +80,7 @@ body {
   height: 20px;
 }
 
-.align-bar {
+.format-bar {
   position: absolute;
   z-index: 1;
   display: flex;
@@ -93,22 +93,67 @@ body {
   box-shadow: 0 4px 12px rgb(15 23 42 / 0.08);
 }
 
-.align-bar[hidden] {
+.format-bar[hidden] {
   display: none;
 }
 
-.align-bar .tool {
+.format-bar .tool {
   width: 30px;
   height: 30px;
   border-radius: 6px;
 }
 
-.align-bar .tool svg {
+.format-bar .tool svg {
   width: 18px;
   height: 18px;
 }
 
-.align-bar .divider {
+.size-field {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: 6px;
+  cursor: text;
+}
+
+.size-field:hover {
+  background: var(--hover);
+}
+
+.size-field:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  background: var(--paper);
+}
+
+.size-field input {
+  width: 3ch;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  appearance: textfield;
+}
+
+.size-field input::-webkit-inner-spin-button,
+.size-field input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.size-field .unit {
+  margin-left: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.format-bar .divider {
   width: 1px;
   height: 20px;
   margin: 0 4px;
