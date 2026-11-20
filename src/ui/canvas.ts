@@ -1,7 +1,7 @@
-import { GRID, snapPoint, type Point } from "./geometry";
-import { arrowMarker } from "./markers";
-import { svgEl } from "./svg";
-import { colours } from "./theme";
+import { GRID, snapPoint, type Point } from "../core/geometry";
+import { svgEl } from "../core/svg";
+import { arrowMarker } from "../render/markers";
+import { colours } from "../render/theme";
 
 export interface CanvasPointer {
   /** Position in diagram units, snapped to the grid. */
@@ -18,16 +18,16 @@ const GRID_EXTENT = 100_000;
 
 /**
  * The drawing surface. Layers, bottom to top:
- * grid, shapes (the document) and overlay (transient tool feedback).
+ * grid, document and overlay (transient editor feedback).
  * Everything sits inside `viewport`, which will later carry pan and zoom.
  */
 export class Canvas {
   readonly svg: SVGSVGElement;
   readonly viewport: SVGGElement;
-  readonly shapeLayer: SVGGElement;
+  readonly documentLayer: SVGGElement;
   readonly overlayLayer: SVGGElement;
 
-  /** The positioned HTML container, also used for floating UI. */
+  /** `host` is the positioned HTML container, also used for floating UI. */
   constructor(readonly host: HTMLElement) {
     const pattern = svgEl(
       "pattern",
@@ -59,13 +59,9 @@ export class Canvas {
       fill: "url(#grid-dots)",
     });
 
-    this.shapeLayer = svgEl("g", { "data-layer": "shapes" });
+    this.documentLayer = svgEl("g", { "data-layer": "document" });
     this.overlayLayer = svgEl("g", { "data-layer": "overlay", "pointer-events": "none" });
-    this.viewport = svgEl("g", { "data-layer": "viewport" }, [
-      grid,
-      this.shapeLayer,
-      this.overlayLayer,
-    ]);
+    this.viewport = svgEl("g", { "data-layer": "viewport" }, [grid, this.documentLayer, this.overlayLayer]);
 
     this.svg = svgEl("svg", { role: "img", "aria-label": "Diagram canvas" }, [
       svgEl("defs", {}, [pattern, arrowMarker()]),
@@ -76,12 +72,17 @@ export class Canvas {
     host.append(this.svg);
   }
 
+  /** A new group in the overlay layer, for one tool or gesture to draw into. */
+  overlay(): SVGGElement {
+    const group = svgEl("g");
+    this.overlayLayer.append(group);
+    return group;
+  }
+
   /** Converts a pointer or mouse event from screen to diagram coordinates. */
   pointer(event: MouseEvent): CanvasPointer {
     const ctm = this.viewport.getScreenCTM();
-    const p = ctm
-      ? new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
-      : new DOMPoint(event.clientX, event.clientY);
+    const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm?.inverse());
     const raw = { x: p.x, y: p.y };
     return { point: snapPoint(raw), raw, event };
   }
@@ -89,7 +90,7 @@ export class Canvas {
   /** Converts a point from diagram to coordinates relative to `host`. */
   toHost(p: Point): Point {
     const ctm = this.viewport.getScreenCTM();
-    const screen = ctm ? new DOMPoint(p.x, p.y).matrixTransform(ctm) : new DOMPoint(p.x, p.y);
+    const screen = new DOMPoint(p.x, p.y).matrixTransform(ctm ?? undefined);
     const hostBox = this.host.getBoundingClientRect();
     return { x: screen.x - hostBox.left, y: screen.y - hostBox.top };
   }

@@ -1,5 +1,5 @@
-import { renderIcon } from "./svg";
-import type { Tool } from "./tools/tool";
+import { renderIcon } from "../core/svg";
+import type { Tool } from "../tools/tool";
 
 /** Vertical tool palette. Holds no state of its own beyond the pressed button. */
 export class Toolbar {

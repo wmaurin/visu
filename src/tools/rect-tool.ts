@@ -1,21 +1,26 @@
-import type { CanvasPointer } from "../canvas";
-import { MIN_SHAPE_SIZE, rectFromPoints, type Point, type Rect } from "../geometry";
-import { newId } from "../model";
-import { setAttrs, svgEl, type IconDef } from "../svg";
-import { colours, font, nodeStyle, textStyle } from "../theme";
-import type { Tool, ToolContext } from "./tool";
+import { MIN_SHAPE_SIZE, rectFromPoints } from "../core/geometry";
+import type { IconDef } from "../core/svg";
+import { newId } from "../model/diagram";
+import type { RectShape } from "../model/types";
+import { sizeReadout } from "../render/overlay";
+import { textStyle } from "../render/theme";
+import type { CanvasPointer } from "../ui/canvas";
+import { GestureTool, type Gesture } from "./tool";
 
-interface Draft {
-  readonly start: Point;
-  readonly outline: SVGRectElement;
-  readonly readout: SVGTextElement;
-}
+const NEW_RECT: Omit<RectShape, "id" | "x" | "y" | "width" | "height"> = {
+  kind: "rect",
+  text: "",
+  align: "center",
+  valign: "middle",
+  fontSize: textStyle.defaultFontSize,
+};
 
 /**
- * Draws rectangles by dragging. Corners snap to the grid.
- * Shift constrains to a square, Escape aborts the current drag.
+ * Draws rectangles by dragging. Corners snap to the grid. Shift constrains
+ * to a square. The shape is real from the first move, so what you see while
+ * dragging is the result. Drags below the minimum size are discarded.
  */
-export class RectTool implements Tool {
+export class RectTool extends GestureTool {
   readonly id = "rect";
   readonly label = "Rectangle";
   readonly shortcut = "r";
@@ -23,87 +28,23 @@ export class RectTool implements Tool {
   // Lucide "square"
   readonly icon: IconDef = [["rect", { x: 3, y: 3, width: 18, height: 18, rx: 2 }]];
 
-  private draft: Draft | null = null;
+  protected begin({ point: start }: CanvasPointer): Gesture {
+    const { diagram, canvas } = this.ctx;
+    const overlay = canvas.overlay();
+    const id = newId();
 
-  constructor(private readonly ctx: ToolContext) {}
-
-  pointerDown({ point, event }: CanvasPointer): void {
-    if (event.button !== 0 || this.draft) return;
-
-    const outline = svgEl("rect", {
-      ...nodeStyle,
-      "fill-opacity": 0.6,
-      "stroke-dasharray": "4 3",
-    });
-    const readout = svgEl("text", {
-      "font-family": font.mono,
-      "font-size": 11,
-      fill: colours.muted,
-    });
-    this.ctx.canvas.overlayLayer.append(outline, readout);
-
-    this.draft = { start: point, outline, readout };
-    this.update(point, event.shiftKey);
+    return {
+      move: ({ point, event }) => {
+        const bounds = rectFromPoints(start, point, event.shiftKey);
+        if (diagram.get("shapes", id)) diagram.update("shapes", id, bounds);
+        else diagram.add("shapes", { ...NEW_RECT, id, ...bounds });
+        overlay.replaceChildren(sizeReadout(bounds));
+      },
+      end: () => {
+        const shape = diagram.get("shapes", id);
+        return !!shape && shape.width >= MIN_SHAPE_SIZE && shape.height >= MIN_SHAPE_SIZE;
+      },
+      dispose: () => overlay.remove(),
+    };
   }
-
-  pointerMove({ point, event }: CanvasPointer): void {
-    if (this.draft) this.update(point, event.shiftKey);
-  }
-
-  pointerUp({ point, event }: CanvasPointer): void {
-    if (!this.draft) return;
-
-    const rect = rectFromPoints(this.draft.start, point, event.shiftKey);
-    this.discard();
-
-    // Smaller drags count as accidental clicks and create nothing.
-    if (rect.width >= MIN_SHAPE_SIZE && rect.height >= MIN_SHAPE_SIZE) {
-      this.ctx.diagram.add({
-        id: newId(),
-        kind: "rect",
-        ...rect,
-        text: "",
-        align: "center",
-        valign: "middle",
-        fontSize: textStyle.defaultFontSize,
-      });
-    }
-  }
-
-  pointerCancel(): void {
-    this.discard();
-  }
-
-  keyDown(event: KeyboardEvent): boolean {
-    if (event.key === "Escape" && this.draft) {
-      this.discard();
-      return true;
-    }
-    return false;
-  }
-
-  deactivate(): void {
-    this.discard();
-  }
-
-  private update(point: Point, square: boolean): void {
-    if (!this.draft) return;
-    const rect = rectFromPoints(this.draft.start, point, square);
-    setAttrs(this.draft.outline, rectAttrs(rect));
-    setAttrs(this.draft.readout, {
-      x: rect.x + rect.width + 8,
-      y: rect.y + rect.height + 16,
-    });
-    this.draft.readout.textContent = `${rect.width} × ${rect.height}`;
-  }
-
-  private discard(): void {
-    this.draft?.outline.remove();
-    this.draft?.readout.remove();
-    this.draft = null;
-  }
-}
-
-function rectAttrs({ x, y, width, height }: Rect) {
-  return { x, y, width, height };
 }

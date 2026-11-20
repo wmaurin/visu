@@ -1,16 +1,30 @@
-import { cssFont } from "./theme";
+import type { Point, Rect } from "../core/geometry";
+import { cssFont } from "../render/theme";
+
+/** Tag height from the style guide. */
+export const TAG_HEIGHT = 20;
+
+/**
+ * Tag width from the style guide: characters × 6.6 + 16, rounded to an
+ * even number. Fits the 11px monospace label text.
+ */
+export function tagWidth(text: string): number {
+  return Math.ceil((text.length * 6.6 + 16) / 2) * 2;
+}
+
+/** Box of a tag centred on `centre`. */
+export function tagBox(centre: Point, text: string): Rect {
+  const width = tagWidth(text);
+  return { x: centre.x - width / 2, y: centre.y - TAG_HEIGHT / 2, width, height: TAG_HEIGHT };
+}
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
 function measurer(fontSize: number): (s: string) => number {
-  if (measureCtx === undefined) {
-    measureCtx = document.createElement("canvas").getContext("2d");
-  }
+  measureCtx ??= document.createElement("canvas").getContext("2d");
   const ctx = measureCtx;
-  if (!ctx) {
-    // Rough fallback if no 2D context is available.
-    return (s) => s.length * fontSize * 0.55;
-  }
+  // Rough fallback if no 2D context is available.
+  if (!ctx) return (s) => s.length * fontSize * 0.55;
   ctx.font = cssFont(fontSize);
   return (s) => ctx.measureText(s).width;
 }

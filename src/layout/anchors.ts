@@ -1,10 +1,9 @@
-import { GRID, snap, type Point, type Rect } from "./geometry";
-import type { Side } from "./model";
+import { clamp, GRID, snap, type Point, type Rect } from "../core/geometry";
+import type { Side } from "../model/types";
 import type { Dir } from "./routing";
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
+/** Direction a line leaves an anchor in: straight out of its side. */
+export const SIDE_OUT: Record<Side, Dir> = { e: 0, s: 1, w: 2, n: 3 };
 
 /**
  * Position of an anchor on a rectangle. `offset` runs from the left edge
@@ -58,6 +57,3 @@ export function allAnchors(r: Rect): Point[] {
   }
   return points;
 }
-
-/** Direction a line leaves an anchor in: straight out of its side. */
-export const SIDE_OUT: Record<Side, Dir> = { e: 0, s: 1, w: 2, n: 3 };

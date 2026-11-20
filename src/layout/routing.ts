@@ -1,6 +1,5 @@
-import { GRID, snap, type Point, type Rect } from "./geometry";
-
-export type Routing = "straight" | "orthogonal";
+import { GRID, snap, type Point, type Rect } from "../core/geometry";
+import type { Routing } from "../model/types";
 
 /** Direction index: 0 east, 1 south, 2 west, 3 north. */
 export type Dir = 0 | 1 | 2 | 3;
@@ -311,26 +310,4 @@ class MinHeap {
     [this.priorities[i], this.priorities[j]] = [this.priorities[j]!, this.priorities[i]!];
     [this.values[i], this.values[j]] = [this.values[j]!, this.values[i]!];
   }
-}
-
-/** Shortest distance from `p` to a polyline. */
-export function distanceToPolyline(p: Point, points: readonly Point[]): number {
-  let best = Infinity;
-  for (let k = 1; k < points.length; k++) {
-    best = Math.min(best, distanceToSegment(p, points[k - 1]!, points[k]!));
-  }
-  return best;
-}
-
-function distanceToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  const t =
-    lengthSq === 0 ? 0 : Math.min(Math.max(((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq, 0), 1);
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
-
-export function pathData(points: readonly Point[]): string {
-  return points.map((p, k) => `${k === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
 }

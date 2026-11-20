@@ -1,20 +1,18 @@
-import type { Point, Rect } from "./geometry";
+import { closestOnSegment, type Point } from "../core/geometry";
 
-/** Tag height from the style guide. */
-export const TAG_HEIGHT = 20;
+/** Polyline helpers shared by routes, hit tests and line labels. */
 
-/**
- * Tag width from the style guide: characters × 6.6 + 16, rounded to an
- * even number. Fits the 11px monospace label text.
- */
-export function tagWidth(text: string): number {
-  return Math.ceil((text.length * 6.6 + 16) / 2) * 2;
+export function pathData(points: readonly Point[]): string {
+  return points.map((p, k) => `${k === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
 }
 
-/** Box of a tag centred on `centre`. */
-export function tagBox(centre: Point, text: string): Rect {
-  const width = tagWidth(text);
-  return { x: centre.x - width / 2, y: centre.y - TAG_HEIGHT / 2, width, height: TAG_HEIGHT };
+/** Shortest distance from `p` to a polyline. */
+export function distanceToPolyline(p: Point, points: readonly Point[]): number {
+  let best = Infinity;
+  for (let k = 1; k < points.length; k++) {
+    best = Math.min(best, closestOnSegment(p, points[k - 1]!, points[k]!).distance);
+  }
+  return best;
 }
 
 /** Cumulative length at each point of a polyline. The first entry is 0. */
@@ -59,21 +57,12 @@ export function fractionAlong(points: readonly Point[], p: Point): number {
   const total = lengths[lengths.length - 1]!;
   if (total === 0) return 0;
 
-  let bestDistance = Infinity;
-  let bestLength = 0;
+  let best = { distance: Infinity, length: 0 };
   for (let k = 1; k < points.length; k++) {
-    const a = points[k - 1]!;
-    const b = points[k]!;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const lengthSq = dx * dx + dy * dy;
-    const u =
-      lengthSq === 0 ? 0 : Math.min(Math.max(((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq, 0), 1);
-    const distance = Math.hypot(p.x - (a.x + u * dx), p.y - (a.y + u * dy));
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestLength = lengths[k - 1]! + u * Math.sqrt(lengthSq);
+    const { u, distance } = closestOnSegment(p, points[k - 1]!, points[k]!);
+    if (distance < best.distance) {
+      best = { distance, length: lengths[k - 1]! + u * (lengths[k]! - lengths[k - 1]!) };
     }
   }
-  return bestLength / total;
+  return best.length / total;
 }

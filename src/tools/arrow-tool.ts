@@ -1,24 +1,27 @@
-import type { CanvasPointer } from "../canvas";
-import { AnchorHints, findTarget, type Target } from "../connect";
-import { markerAttrs } from "../markers";
-import { newId, type Cap } from "../model";
-import { pathData, type Routing } from "../routing";
-import { setAttrs, svgEl, type IconDef } from "../svg";
-import { linkStyle } from "../theme";
-import type { Tool, ToolContext } from "./tool";
+import type { AppContext } from "../context";
+import { samePoint } from "../core/geometry";
+import type { IconDef } from "../core/svg";
+import { newId } from "../model/diagram";
+import { connectionTarget, type Target } from "../model/queries";
+import type { LineShape, Shape } from "../model/types";
+import { anchorHints } from "../render/overlay";
+import type { CanvasPointer } from "../ui/canvas";
+import { GestureTool, type Gesture } from "./tool";
 
 /** New lines follow the style guide: orthogonal flows with an arrow at the end. */
-const DEFAULT_ROUTING: Routing = "orthogonal";
-const DEFAULT_START_CAP: Cap = "none";
-const DEFAULT_END_CAP: Cap = "arrow";
+const NEW_LINE: Omit<LineShape, "id" | "from" | "to"> = {
+  routing: "orthogonal",
+  startCap: "none",
+  endCap: "arrow",
+};
 
 /**
  * Draws lines by dragging. Near a shape, every grid point on its border is
- * an anchor. The closest one is highlighted and the line attaches there, so
- * it follows the shape later. Away from shapes, the end sits on a free grid
- * point. Escape aborts the current drag.
+ * an anchor. The line attaches to the closest one and follows the shape
+ * later. Away from shapes, the end sits on a free grid point. The line is
+ * real from the first move, so its route shows while dragging.
  */
-export class ArrowTool implements Tool {
+export class ArrowTool extends GestureTool {
   readonly id = "arrow";
   readonly label = "Arrow";
   readonly shortcut = "a";
@@ -29,81 +32,40 @@ export class ArrowTool implements Tool {
     ["path", { d: "M19 5L5 19" }],
   ];
 
-  private start: Target | null = null;
-  private readonly preview = svgEl("path", {
-    ...linkStyle,
-    ...markerAttrs(DEFAULT_START_CAP, DEFAULT_END_CAP),
-    "stroke-dasharray": "4 3",
-  });
-  private readonly hints: AnchorHints;
+  private readonly overlay: SVGGElement;
 
-  constructor(private readonly ctx: ToolContext) {
-    this.hints = new AnchorHints(ctx.canvas);
+  constructor(ctx: AppContext) {
+    super(ctx);
+    this.overlay = ctx.canvas.overlay();
   }
 
   deactivate(): void {
-    this.start = null;
-    this.preview.remove();
-    this.hints.clear();
+    super.deactivate();
+    this.overlay.replaceChildren();
   }
 
-  pointerDown({ point, raw, event }: CanvasPointer): void {
-    if (event.button !== 0) return;
-    this.start = findTarget(this.ctx.diagram, point, raw);
-    this.update(this.start);
+  protected hover({ point, raw }: CanvasPointer): void {
+    this.showHints(connectionTarget(this.ctx.diagram.doc, point, raw));
   }
 
-  pointerMove({ point, raw }: CanvasPointer): void {
-    this.update(findTarget(this.ctx.diagram, point, raw));
+  protected begin({ point, raw }: CanvasPointer): Gesture {
+    const { diagram } = this.ctx;
+    const start = connectionTarget(diagram.doc, point, raw);
+    const id = newId();
+
+    return {
+      move: ({ point, raw }) => {
+        const target = connectionTarget(diagram.doc, point, raw);
+        // Anchor dots of the start shape and of the hovered shape.
+        this.showHints(target, start.shape);
+        if (samePoint(target.point, start.point)) return;
+        if (diagram.get("lines", id)) diagram.update("lines", id, { to: target.end });
+        else diagram.add("lines", { ...NEW_LINE, id, from: start.end, to: target.end });
+      },
+    };
   }
 
-  pointerUp({ point, raw }: CanvasPointer): void {
-    const start = this.start;
-    if (!start) return;
-    this.start = null;
-
-    const end = findTarget(this.ctx.diagram, point, raw);
-    if (end.point.x !== start.point.x || end.point.y !== start.point.y) {
-      this.ctx.diagram.addLine({
-        id: newId(),
-        kind: "line",
-        from: start.end,
-        to: end.end,
-        routing: DEFAULT_ROUTING,
-        startCap: DEFAULT_START_CAP,
-        endCap: DEFAULT_END_CAP,
-        labels: [],
-      });
-    }
-    this.update(end);
-  }
-
-  pointerCancel(): void {
-    this.deactivate();
-  }
-
-  keyDown(event: KeyboardEvent): boolean {
-    if (event.key === "Escape" && this.start) {
-      this.start = null;
-      this.preview.remove();
-      return true;
-    }
-    return false;
-  }
-
-  private update(target: Target): void {
-    // Anchor dots of the hovered shape and of the shape the drag started on.
-    this.hints.show(target, [this.start?.shape]);
-
-    const route = this.start
-      ? this.ctx.diagram.routeBetween(this.start.end, target.end, DEFAULT_ROUTING)
-      : null;
-    if (route) {
-      setAttrs(this.preview, { d: pathData(route) });
-      // Below the anchors, so the dots stay visible.
-      if (!this.preview.isConnected) this.ctx.canvas.overlayLayer.prepend(this.preview);
-    } else {
-      this.preview.remove();
-    }
+  private showHints(target: Target, extra?: Shape): void {
+    this.overlay.replaceChildren(...anchorHints(target, [extra]));
   }
 }

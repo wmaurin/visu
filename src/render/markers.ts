@@ -1,4 +1,4 @@
-import { svgEl } from "./svg";
+import { svgEl } from "../core/svg";
 import { colours } from "./theme";
 
 export const ARROW_MARKER_ID = "arrow";
