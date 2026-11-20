@@ -462,6 +462,48 @@ body {
   display: none;
 }
 
+/* Colour picker */
+.color-preview {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid;
+  border-radius: 50%;
+}
+
+.color-panel {
+  gap: 12px;
+  width: 232px;
+  padding: 12px;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  outline: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.color-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--ink);
+}
+
+.color-swatch:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.color-panel .setting {
+  margin-top: 0;
+}
+
 .dropdown-item {
   display: flex;
   align-items: center;

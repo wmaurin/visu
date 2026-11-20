@@ -1,5 +1,7 @@
 import type { Rect } from "../core/geometry";
 import { renderIcon, type IconDef } from "../core/svg";
+import { COLOR_NAMES, type ColorName } from "../model/types";
+import { PALETTE, tint } from "../render/theme";
 import type { Canvas } from "./canvas";
 
 /** Distance between a bar and its target. Clears the selection handles. */
@@ -107,7 +109,11 @@ export function dropdown<T, V>(
     menu.className = "dropdown-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", label);
-    menu.hidden = true;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "dropdown";
+    wrapper.append(trigger, menu);
+    const { close } = popover(wrapper, trigger, menu);
 
     const items = options.map((option) => {
       const item = button("dropdown-item");
@@ -124,32 +130,6 @@ export function dropdown<T, V>(
       return { option, item };
     });
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "dropdown";
-    wrapper.append(trigger, menu);
-
-    const onOutside = (event: PointerEvent) => {
-      if (!wrapper.contains(event.target as Node)) close();
-    };
-    function open(): void {
-      menu.hidden = false;
-      trigger.setAttribute("aria-expanded", "true");
-      document.addEventListener("pointerdown", onOutside, true);
-    }
-    function close(): void {
-      menu.hidden = true;
-      trigger.setAttribute("aria-expanded", "false");
-      document.removeEventListener("pointerdown", onOutside, true);
-    }
-
-    trigger.addEventListener("click", () => (menu.hidden ? open() : close()));
-    wrapper.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || menu.hidden) return;
-      // Closes the menu only, without clearing the selection.
-      event.stopPropagation();
-      close();
-    });
-
     return {
       el: wrapper,
       close,
@@ -161,6 +141,120 @@ export function dropdown<T, V>(
         for (const { option, item: el } of items) {
           el.setAttribute("aria-checked", String(option.value === value));
         }
+      },
+    };
+  };
+}
+
+/**
+ * Makes `panel` a popup of `trigger`: the trigger toggles it, a click
+ * outside `wrapper` and Escape close it. Escape is kept from the editor
+ * shortcuts, so it never clears the selection at the same time.
+ */
+function popover(wrapper: HTMLElement, trigger: HTMLButtonElement, panel: HTMLElement): { close(): void } {
+  panel.hidden = true;
+  trigger.setAttribute("aria-expanded", "false");
+
+  const onOutside = (event: PointerEvent) => {
+    if (!wrapper.contains(event.target as Node)) close();
+  };
+  function open(): void {
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    document.addEventListener("pointerdown", onOutside, true);
+  }
+  function close(): void {
+    panel.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", onOutside, true);
+  }
+
+  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+  wrapper.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || panel.hidden) return;
+    event.stopPropagation();
+    close();
+  });
+  return { close };
+}
+
+export interface ColorValue {
+  readonly color: ColorName;
+  readonly saturation: number;
+}
+
+/**
+ * Colour picker: the trigger shows the current colour, the panel holds one
+ * swatch per palette colour and a saturation slider. Both apply live.
+ */
+export function colorField<T>(
+  label: string,
+  read: (item: T) => ColorValue,
+  write: (item: T, value: Partial<ColorValue>) => void,
+): Control<T> {
+  return (current) => {
+    const trigger = button("tool dropdown-trigger");
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.setAttribute("aria-label", label);
+    const preview = document.createElement("span");
+    preview.className = "color-preview";
+    trigger.append(preview, renderIcon(CHEVRON));
+
+    const swatches = COLOR_NAMES.map((name) => {
+      const swatch = button("color-swatch");
+      swatch.title = name;
+      swatch.setAttribute("aria-label", name);
+      swatch.style.background = PALETTE[name];
+      swatch.addEventListener("click", () => {
+        const item = current();
+        if (item) write(item, { color: name });
+      });
+      return { name, swatch };
+    });
+    const grid = document.createElement("div");
+    grid.className = "color-grid";
+    grid.append(...swatches.map((s) => s.swatch));
+
+    const slider = document.createElement("input");
+    Object.assign(slider, { type: "range", min: 0, max: 100, step: 1 });
+    slider.setAttribute("aria-label", "Saturation");
+    slider.addEventListener("input", () => {
+      const item = current();
+      if (item) write(item, { saturation: Number(slider.value) });
+    });
+    const sliderValue = document.createElement("output");
+    const sliderHead = document.createElement("div");
+    sliderHead.className = "setting-head";
+    const sliderLabel = document.createElement("span");
+    sliderLabel.textContent = "Saturation";
+    sliderHead.append(sliderLabel, sliderValue);
+    const sliderRow = document.createElement("label");
+    sliderRow.className = "setting";
+    sliderRow.append(sliderHead, slider);
+
+    const panel = document.createElement("div");
+    panel.className = "dropdown-menu color-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", label);
+    panel.append(grid, sliderRow);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "dropdown";
+    wrapper.append(trigger, panel);
+    const { close } = popover(wrapper, trigger, panel);
+
+    return {
+      el: wrapper,
+      close,
+      sync: (item) => {
+        const { color, saturation } = read(item);
+        preview.style.background = tint(color, saturation);
+        preview.style.borderColor = PALETTE[color];
+        trigger.title = `${label}: ${color}, ${saturation} %`;
+        for (const { name, swatch } of swatches) swatch.setAttribute("aria-pressed", String(name === color));
+        // Never move the slider under the user's hand.
+        if (document.activeElement !== slider) slider.value = String(saturation);
+        sliderValue.textContent = `${saturation} %`;
       },
     };
   };

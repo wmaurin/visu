@@ -6,6 +6,26 @@ export function pathData(points: readonly Point[]): string {
   return points.map((p, k) => `${k === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
 }
 
+/**
+ * Arrow head at one end of a polyline, as a triangle pointing along the
+ * end segment. The size matches the style guide's arrow marker scaled to
+ * 10px: 8 long, 7 wide, tip on the end point.
+ */
+export function arrowHead(points: readonly Point[], atStart: boolean): Point[] | null {
+  const tip = atStart ? points[0] : points[points.length - 1];
+  const from = atStart ? points[1] : points[points.length - 2];
+  if (!tip || !from) return null;
+  const dx = tip.x - from.x;
+  const dy = tip.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return null;
+
+  const ux = dx / length;
+  const uy = dy / length;
+  const base = { x: tip.x - ux * 8, y: tip.y - uy * 8 };
+  return [tip, { x: base.x - uy * 3.5, y: base.y + ux * 3.5 }, { x: base.x + uy * 3.5, y: base.y - ux * 3.5 }];
+}
+
 /** Shortest distance from `p` to a polyline. */
 export function distanceToPolyline(p: Point, points: readonly Point[]): number {
   let best = Infinity;

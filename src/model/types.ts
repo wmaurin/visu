@@ -9,6 +9,23 @@ export type LineStyle = "solid" | "dashed";
 /** How a line end is drawn. */
 export type Cap = "none" | "arrow";
 
+/** Colour palette. The hex values live in render/theme. */
+export const COLOR_NAMES = [
+  "black",
+  "slate",
+  "red",
+  "orange",
+  "amber",
+  "green",
+  "teal",
+  "sky",
+  "blue",
+  "indigo",
+  "violet",
+  "rose",
+] as const;
+export type ColorName = (typeof COLOR_NAMES)[number];
+
 export interface RectShape extends Rect {
   readonly id: string;
   readonly kind: "rect";
@@ -17,6 +34,10 @@ export interface RectShape extends Rect {
   readonly valign: VAlign;
   /** In px, like every other diagram unit. */
   readonly fontSize: number;
+  /** Border colour. The fill is this colour mixed with white. */
+  readonly color: ColorName;
+  /** Fill strength, 0 (white) to 100 (full colour). */
+  readonly saturation: number;
   /** Rectangle this one sits in, or null at the top level. See model/hierarchy. */
   readonly parentId: string | null;
 }
@@ -38,6 +59,9 @@ export interface LineShape {
   readonly to: Endpoint;
   readonly routing: Routing;
   readonly style: LineStyle;
+  readonly color: ColorName;
+  /** Strength of the colour, 0 (white) to 100 (full colour). */
+  readonly saturation: number;
   readonly startCap: Cap;
   readonly endCap: Cap;
 }

@@ -1,7 +1,6 @@
 import type { Rect } from "../core/geometry";
 import { svgEl } from "../core/svg";
 import type { Doc } from "../model/types";
-import { arrowMarker } from "../render/markers";
 import { renderDiagram } from "../render/renderer";
 import { colours } from "../render/theme";
 
@@ -20,7 +19,6 @@ export function exportSvg(doc: Doc, area: Rect): string {
   for (const el of content.querySelectorAll("[data-id]")) el.removeAttribute("data-id");
 
   const svg = svgEl("svg", { viewBox: `${x} ${y} ${width} ${height}`, width, height }, [
-    svgEl("defs", {}, [arrowMarker()]),
     svgEl("rect", { x, y, width, height, fill: colours.paper }),
     content,
   ]);

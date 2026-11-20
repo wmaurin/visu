@@ -1,11 +1,23 @@
 import { svgEl } from "../core/svg";
-import { pathData } from "../layout/path";
+import { arrowHead, pathData } from "../layout/path";
 import { TAG_PADDING_X, wrapText } from "../layout/text";
 import type { Rect } from "../core/geometry";
 import { FRAME_TITLE_SIZE, labelBox, layering, route, textBox } from "../model/queries";
 import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
-import { markerAttrs } from "./markers";
-import { colours, DASH, font, frameStyle, lineHeightFor, linkStyle, nodeStyle, tagStyle, textStyle } from "./theme";
+import {
+  colours,
+  DASH,
+  font,
+  frameStyle,
+  lineHeightFor,
+  linkStyle,
+  nodeStyle,
+  PALETTE,
+  readableOn,
+  tagStyle,
+  textStyle,
+  tint,
+} from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = { left: "start", center: "middle", right: "end" };
 
@@ -37,7 +49,8 @@ function renderText(shape: RectShape): SVGTextElement {
       "font-family": font.sans,
       "font-size": fontSize,
       "font-weight": textStyle.fontWeight,
-      fill: textStyle.fill,
+      // Switches to white on dark fills, so text stays readable.
+      fill: readableOn(shapeFill(shape)),
       style: "white-space: pre",
     },
     lines.map((line, i) => {
@@ -48,12 +61,17 @@ function renderText(shape: RectShape): SVGTextElement {
   );
 }
 
+/** Fill of a rectangle: its colour mixed with white by the saturation. */
+export function shapeFill(shape: Shape): string {
+  return tint(shape.color, shape.saturation);
+}
+
 function renderShape(shape: Shape, hideText: boolean): SVGElement {
   switch (shape.kind) {
     case "rect": {
       const { x, y, width, height } = shape;
       const group = svgEl("g", { "data-id": shape.id }, [
-        svgEl("rect", { x, y, width, height, ...nodeStyle }),
+        svgEl("rect", { x, y, width, height, ...nodeStyle, fill: shapeFill(shape), stroke: PALETTE[shape.color] }),
       ]);
       if (!hideText && shape.text !== "") group.append(renderText(shape));
       return group;
@@ -61,17 +79,30 @@ function renderShape(shape: Shape, hideText: boolean): SVGElement {
   }
 }
 
+/**
+ * Line with its arrow heads. The heads are filled triangles rather than
+ * SVG markers, so they take any colour and look the same in every viewer.
+ */
 function renderLine(doc: Doc, line: LineShape): SVGElement[] {
   const points = route(doc, line);
   if (!points) return [];
+  const colour = tint(line.color, line.saturation);
+
+  const heads = [
+    line.startCap === "arrow" ? arrowHead(points, true) : null,
+    line.endCap === "arrow" ? arrowHead(points, false) : null,
+  ].flatMap((head) => (head ? [svgEl("path", { d: `${pathData(head)} Z`, fill: colour })] : []));
+
   return [
-    svgEl("path", {
-      "data-id": line.id,
-      d: pathData(points),
-      ...linkStyle,
-      ...(line.style === "dashed" ? { "stroke-dasharray": DASH } : {}),
-      ...markerAttrs(line.startCap, line.endCap),
-    }),
+    svgEl("g", { "data-id": line.id }, [
+      svgEl("path", {
+        d: pathData(points),
+        ...linkStyle,
+        stroke: colour,
+        ...(line.style === "dashed" ? { "stroke-dasharray": DASH } : {}),
+      }),
+      ...heads,
+    ]),
   ];
 }
 

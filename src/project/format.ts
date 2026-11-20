@@ -1,5 +1,14 @@
 import { arr, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
-import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, RectShape } from "../model/types";
+import {
+  COLOR_NAMES,
+  type Doc,
+  type Endpoint,
+  type ExportFrame,
+  type FreeText,
+  type LineLabel,
+  type LineShape,
+  type RectShape,
+} from "../model/types";
 import { textStyle } from "../render/theme";
 
 /**
@@ -32,6 +41,8 @@ const H_ALIGN = oneOf("left", "center", "right");
 const V_ALIGN = oneOf("top", "middle", "bottom");
 const CAP = oneOf("none", "arrow");
 const PARENT = nullable(ID);
+const COLOR = oneOf(...COLOR_NAMES);
+const SATURATION = num(0, 100);
 
 const rect = obj<RectShape>({
   id: ID,
@@ -44,6 +55,8 @@ const rect = obj<RectShape>({
   align: H_ALIGN,
   valign: V_ALIGN,
   fontSize: FONT_SIZE,
+  color: COLOR,
+  saturation: SATURATION,
   parentId: PARENT,
 });
 
@@ -63,6 +76,8 @@ const line = obj<LineShape>({
   to: endpoint,
   routing: oneOf("straight", "orthogonal"),
   style: oneOf("solid", "dashed"),
+  color: COLOR,
+  saturation: SATURATION,
   startCap: CAP,
   endCap: CAP,
 });

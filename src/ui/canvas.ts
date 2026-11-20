@@ -1,6 +1,5 @@
 import { grid as gridSize, snapPoint, type Point } from "../core/geometry";
 import { setAttrs, svgEl } from "../core/svg";
-import { arrowMarker } from "../render/markers";
 import { colours } from "../render/theme";
 
 export interface CanvasPointer {
@@ -72,7 +71,7 @@ export class Canvas {
     ]);
 
     this.svg = svgEl("svg", { role: "img", "aria-label": "Diagram canvas" }, [
-      svgEl("defs", {}, [pattern, arrowMarker()]),
+      svgEl("defs", {}, [pattern]),
       svgEl("rect", { width: "100%", height: "100%", fill: colours.paper }),
       this.viewport,
     ]);

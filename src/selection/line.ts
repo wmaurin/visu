@@ -9,7 +9,7 @@ import { fractionAlong } from "../layout/path";
 import { anchorHints, HANDLE_HIT_SLOP, highlight, roundHandle, ROUND_HANDLE_RADIUS } from "../render/overlay";
 import { tagStyle } from "../render/theme";
 import type { Gesture } from "../tools/tool";
-import { dropdown, FloatingBar, type Choice } from "../ui/floating-bar";
+import { colorField, dropdown, FloatingBar, type Choice } from "../ui/floating-bar";
 import { within, type Handler } from "./handler";
 import { labelField } from "./label";
 
@@ -57,6 +57,7 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
       dropdown("Line start", START_CAP, (l) => l.startCap, (l, startCap) => set(l, { startCap })),
       dropdown("Line end", END_CAP, (l) => l.endCap, (l, endCap) => set(l, { endCap })),
       dropdown("Style", STYLE, (l) => l.style, (l, style) => set(l, { style })),
+      colorField("Colour", (l) => l, (l, value) => set(l, value)),
       dropdown("Routing", ROUTING, (l) => l.routing, (l, routing) => set(l, { routing })),
     ]),
 

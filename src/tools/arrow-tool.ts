@@ -12,6 +12,8 @@ import { GestureTool, type Gesture } from "./tool";
 const NEW_LINE: Omit<LineShape, "id" | "from" | "to"> = {
   routing: "orthogonal",
   style: "solid",
+  color: "black",
+  saturation: 100,
   startCap: "none",
   endCap: "arrow",
 };

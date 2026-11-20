@@ -1,3 +1,5 @@
+import type { ColorName } from "../model/types";
+
 /**
  * Diagram style tokens, taken from the visualisation style guide.
  * Applied as SVG attributes (not CSS classes) so a later SVG export
@@ -15,6 +17,46 @@ export const colours = {
   surface: "#F8FAFC",
   paper: "#FFFFFF",
 } as const;
+
+/** Diagram palette, mostly Tailwind 600 tones: strong enough on white, readable white text on top. */
+export const PALETTE: Readonly<Record<ColorName, string>> = {
+  black: "#000000",
+  slate: "#475569",
+  red: "#DC2626",
+  orange: "#EA580C",
+  amber: "#D97706",
+  green: "#16A34A",
+  teal: "#0D9488",
+  sky: "#0284C7",
+  blue: "#2563EB",
+  indigo: "#4F46E5",
+  violet: "#7C3AED",
+  rose: "#E11D48",
+};
+
+/** The palette colour at `saturation` percent, mixed with white. */
+export function tint(color: ColorName, saturation: number): string {
+  const t = Math.min(Math.max(saturation, 0), 100) / 100;
+  const hex = PALETTE[color];
+  const channel = (i: number) => {
+    const full = Number.parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+    return Math.round(255 + (full - 255) * t)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${channel(0)}${channel(1)}${channel(2)}`.toUpperCase();
+}
+
+/** Black or white, whichever reads better on `background` (WCAG relative luminance). */
+export function readableOn(background: string): string {
+  const linear = (i: number) => {
+    const c = Number.parseInt(background.slice(1 + 2 * i, 3 + 2 * i), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * linear(0) + 0.7152 * linear(1) + 0.0722 * linear(2);
+  // Equal contrast against black and white lies at a luminance of about 0.18.
+  return luminance < 0.18 ? "#FFFFFF" : "#000000";
+}
 
 /** Editor only colours. Never part of the diagram itself. */
 export const ui = {
