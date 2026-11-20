@@ -1,12 +1,21 @@
 import type { AppContext } from "../context";
-import { boundsOf, samePoint } from "../core/geometry";
+import { boundsOf, samePoint, type Point } from "../core/geometry";
 import type { IconDef } from "../core/svg";
 import type { Patch } from "../model/diagram";
 import { newId } from "../model/diagram";
 import { connectionTarget, resolve, route } from "../model/queries";
 import type { Cap, LineShape, LineStyle, Routing } from "../model/types";
 import { fractionAlong } from "../layout/path";
-import { anchorHints, HANDLE_HIT_SLOP, highlight, roundHandle, ROUND_HANDLE_RADIUS } from "../render/overlay";
+import { middleRun } from "../layout/routing";
+import {
+  anchorHints,
+  HANDLE_HIT_SLOP,
+  HANDLE_SIZE,
+  highlight,
+  roundHandle,
+  ROUND_HANDLE_RADIUS,
+  squareHandle,
+} from "../render/overlay";
 import { tagStyle } from "../render/theme";
 import type { Gesture } from "../tools/tool";
 import { colorField, dropdown, FloatingBar, type Choice } from "../ui/floating-bar";
@@ -68,7 +77,14 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
 
     overlay: (l) => {
       const pts = points(l);
-      return pts ? [highlight(pts), roundHandle(pts[0]!), roundHandle(pts[pts.length - 1]!)] : [];
+      if (!pts) return [];
+      const middle = middleHandle(l, pts);
+      return [
+        highlight(pts),
+        roundHandle(pts[0]!),
+        roundHandle(pts[pts.length - 1]!),
+        ...(middle ? [squareHandle(middle.at)] : []),
+      ];
     },
 
     handleAt: (l, p) => {
@@ -80,7 +96,17 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
         : within(p, pts[pts.length - 1]!, reach)
           ? "to"
           : null;
-      return end ? { cursor: "move", begin: () => reconnect(ctx, l, end) } : null;
+      if (end) return { cursor: "move", begin: () => reconnect(ctx, l, end) };
+
+      const middle = middleHandle(l, pts);
+      if (middle && within(p, middle.at, HANDLE_SIZE / 2 + HANDLE_HIT_SLOP)) {
+        return {
+          cursor: middle.vertical ? "ew-resize" : "ns-resize",
+          // The snapped pointer becomes the point the middle run passes through.
+          begin: () => ({ move: ({ point }) => set(l, { middle: point }) }),
+        };
+      }
+      return null;
     },
 
     doubleClick: (l, p) => {
@@ -102,9 +128,18 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
   };
 }
 
+/** Handle in the middle of a Z route's middle run, which drags that run across. */
+function middleHandle(line: LineShape, points: readonly Point[]): { at: Point; vertical: boolean } | null {
+  if (line.routing !== "orthogonal") return null;
+  const run = middleRun(points);
+  if (!run) return null;
+  return { at: { x: (run.a.x + run.b.x) / 2, y: (run.a.y + run.b.y) / 2 }, vertical: run.vertical };
+}
+
 /**
  * Drags one end to another anchor or grid point. A target on the other
- * end's position is skipped, as it would collapse the line.
+ * end's position is skipped, as it would collapse the line. A dragged
+ * middle run is reset, as it belonged to the old route.
  */
 function reconnect(ctx: AppContext, line: LineShape, end: LineEnd): Gesture {
   const overlay = ctx.canvas.overlay();
@@ -114,7 +149,11 @@ function reconnect(ctx: AppContext, line: LineShape, end: LineEnd): Gesture {
       const target = connectionTarget(ctx.diagram.doc, point, raw);
       overlay.replaceChildren(...anchorHints(target));
       if (other && samePoint(other, target.point)) return;
-      ctx.diagram.update("lines", line.id, end === "from" ? { from: target.end } : { to: target.end });
+      ctx.diagram.update(
+        "lines",
+        line.id,
+        end === "from" ? { from: target.end, middle: null } : { to: target.end, middle: null },
+      );
     },
     dispose: () => overlay.remove(),
   };

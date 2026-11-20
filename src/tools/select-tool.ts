@@ -2,7 +2,7 @@ import type { AppContext } from "../context";
 import { rectFromPoints } from "../core/geometry";
 import { svgEl, type IconDef } from "../core/svg";
 import { settle } from "../model/hierarchy";
-import { descendants, itemsInside, pick, route } from "../model/queries";
+import { bentLinesBetween, descendants, itemsInside, pick, route } from "../model/queries";
 import {
   includesRef,
   sameRef,
@@ -176,6 +176,9 @@ export class SelectTool extends GestureTool {
       take(ref);
       if (ref.kind === "shapes") descendants(diagram.doc, ref.id).forEach(take);
     }
+    // Lines running only between moving rectangles keep their dragged middle run in step.
+    const shapeIds = new Set([...moving].filter(([, m]) => m.kind === "shapes").map(([id]) => id));
+    const bent = bentLinesBetween(diagram.doc, shapeIds);
 
     return {
       move: ({ point }) => {
@@ -183,6 +186,7 @@ export class SelectTool extends GestureTool {
         const dy = point.y - start.point.y;
         diagram.batch(() => {
           for (const [id, { kind, x, y }] of moving) diagram.update(kind, id, { x: x + dx, y: y + dy });
+          for (const l of bent) diagram.update("lines", l.id, { middle: { x: l.middle!.x + dx, y: l.middle!.y + dy } });
         });
       },
       end: () => {

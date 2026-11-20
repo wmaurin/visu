@@ -72,7 +72,10 @@ export function pasteClip(diagram: Diagram, clip: Clip, offset: number): Ref[] {
     for (const t of clip.texts) {
       diagram.add("texts", { ...t, id: id(t.id), x: t.x + offset, y: t.y + offset, parentId: parent(t.parentId) });
     }
-    for (const l of clip.lines) diagram.add("lines", { ...l, id: id(l.id), from: end(l.from), to: end(l.to) });
+    for (const l of clip.lines) {
+      const middle = l.middle && { x: l.middle.x + offset, y: l.middle.y + offset };
+      diagram.add("lines", { ...l, id: id(l.id), from: end(l.from), to: end(l.to), middle });
+    }
     for (const l of clip.labels) diagram.add("labels", { ...l, id: id(l.id), lineId: id(l.lineId) });
 
     for (const item of [...clip.shapes, ...clip.texts]) {

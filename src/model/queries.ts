@@ -1,7 +1,7 @@
 import { containsPoint, grid, inflate, type Point, type Rect } from "../core/geometry";
 import { anchorPoint, nearestAnchor, SIDE_OUT } from "../layout/anchors";
 import { distanceToPolyline, pointAlong } from "../layout/path";
-import { computeRoute, type RouteEnd } from "../layout/routing";
+import { computeRoute, moveMiddle, type RouteEnd } from "../layout/routing";
 import { tagBox, textWidth } from "../layout/text";
 import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
 
@@ -110,6 +110,17 @@ export function descendants(doc: Doc, shapeId: string): Ref[] {
   return found;
 }
 
+/**
+ * Lines with a dragged middle run whose anchored ends all sit on the given
+ * rectangles. When those rectangles move together, the middle run moves too.
+ */
+export function bentLinesBetween(doc: Doc, shapeIds: ReadonlySet<string>): LineShape[] {
+  return doc.lines.filter((l) => {
+    const anchors = [l.from, l.to].filter((e) => e.kind === "anchor");
+    return l.middle !== null && anchors.length > 0 && anchors.every((e) => shapeIds.has(e.shapeId));
+  });
+}
+
 /** Area an item occupies, used to decide what it sits in. */
 export function childBounds(item: Shape | FreeText): Rect {
   if ("width" in item) return item;
@@ -178,6 +189,8 @@ export function route(doc: Doc, line: LineShape): Point[] | null {
   let points = cache.get(key);
   if (points === undefined) {
     points = routeBetween(doc, line.from, line.to, line.routing);
+    // A dragged middle run wins, as long as it still fits the route.
+    if (points && line.middle && line.routing === "orthogonal") points = moveMiddle(points, line.middle) ?? points;
     cache.set(key, points);
   }
   return points;

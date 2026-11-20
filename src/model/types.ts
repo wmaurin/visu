@@ -1,4 +1,4 @@
-import type { Rect } from "../core/geometry";
+import type { Point, Rect } from "../core/geometry";
 
 export type HAlign = "left" | "center" | "right";
 export type VAlign = "top" | "middle" | "bottom";
@@ -64,6 +64,12 @@ export interface LineShape {
   readonly from: Endpoint;
   readonly to: Endpoint;
   readonly routing: Routing;
+  /**
+   * A point the middle run of a Z shaped orthogonal route passes through,
+   * set by dragging that run. null lets the router place it. Cleared when
+   * an end is reconnected.
+   */
+  readonly middle: Point | null;
   readonly style: LineStyle;
   readonly color: ColorName;
   /** Strength of the colour, 0 (white) to 100 (full colour). */

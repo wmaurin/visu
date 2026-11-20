@@ -1,7 +1,7 @@
 import type { AppContext } from "../context";
 import { grid, type Point, type Rect } from "../core/geometry";
 import { settle } from "../model/hierarchy";
-import { descendants } from "../model/queries";
+import { bentLinesBetween, descendants } from "../model/queries";
 import type { ChildKind, Item } from "../model/types";
 import { HANDLE_HIT_SLOP, HANDLE_SIZE, selectionBox, selectionOutline, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
@@ -78,6 +78,9 @@ export function boxBehaviour<T extends Item<BoxKind>>(
           return item ? [{ kind: ref.kind as ChildKind, item }] : [];
         }),
       ];
+      // Lines running only between moving rectangles keep their dragged middle run in step.
+      const shapeIds = new Set(moving.filter((m) => m.kind === "shapes").map((m) => m.item.id));
+      const bent = kind === "shapes" ? bentLinesBetween(doc, shapeIds) : [];
       return {
         move: ({ point }) => {
           const dx = point.x - start.point.x;
@@ -85,6 +88,9 @@ export function boxBehaviour<T extends Item<BoxKind>>(
           ctx.diagram.batch(() => {
             for (const { kind: k, item } of moving) {
               ctx.diagram.update(k, item.id, { x: item.x + dx, y: item.y + dy });
+            }
+            for (const l of bent) {
+              ctx.diagram.update("lines", l.id, { middle: { x: l.middle!.x + dx, y: l.middle!.y + dy } });
             }
           });
         },

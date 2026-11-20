@@ -210,34 +210,53 @@ function toPolyline(goal: number, from: Int32Array, width: number, minI: number,
 }
 
 /**
- * A* picks any of several equally cheap Z routes, often with the middle
- * run right next to one end. This moves the middle run halfway between
- * the ends, onto a visible grid line, if both outer runs stay at least a
- * stub long and all points along the new route are free.
+ * The middle run of a Z shaped route: three runs, the outer two parallel.
+ * `vertical` tells the direction of the middle run, which moves across it.
  */
-function centreZ(points: Point[], isFree: (p: Point) => boolean): Point[] {
-  if (points.length !== 4) return points;
+export function middleRun(points: readonly Point[]): { a: Point; b: Point; vertical: boolean } | null {
+  if (points.length !== 4) return null;
   const [p0, p1, p2, p3] = points as [Point, Point, Point, Point];
-  const keepsStubs = (start: number, mid: number, end: number, first: number, last: number) =>
-    Math.sign(mid - start) === Math.sign(first - start) &&
-    Math.sign(end - mid) === Math.sign(end - last) &&
+  if (p0.y === p1.y && p2.y === p3.y && p1.x === p2.x) return { a: p1, b: p2, vertical: true };
+  if (p0.x === p1.x && p2.x === p3.x && p1.y === p2.y) return { a: p1, b: p2, vertical: false };
+  return null;
+}
+
+/**
+ * The Z route with its middle run moved through `through`: across a
+ * vertical run that means its x, across a horizontal one its y. Null when
+ * the route is no Z or the move would turn an outer run around or cut it
+ * shorter than a stub.
+ */
+export function moveMiddle(points: readonly Point[], through: Point): Point[] | null {
+  const run = middleRun(points);
+  if (!run) return null;
+  const [p0, , , p3] = points as [Point, Point, Point, Point];
+  const keepsStubs = (start: number, mid: number, end: number, oldMid: number) =>
+    Math.sign(mid - start) === Math.sign(oldMid - start) &&
+    Math.sign(end - mid) === Math.sign(end - oldMid) &&
     Math.abs(mid - start) >= STUB &&
     Math.abs(end - mid) >= STUB;
 
-  let candidate: Point[];
-  if (p0.y === p1.y && p2.y === p3.y) {
-    const mid = snap((p0.x + p3.x) / 2, grid());
-    if (!keepsStubs(p0.x, mid, p3.x, p1.x, p2.x)) return points;
-    candidate = [p0, { x: mid, y: p0.y }, { x: mid, y: p3.y }, p3];
-  } else if (p0.x === p1.x && p2.x === p3.x) {
-    const mid = snap((p0.y + p3.y) / 2, grid());
-    if (!keepsStubs(p0.y, mid, p3.y, p1.y, p2.y)) return points;
-    candidate = [p0, { x: p0.x, y: mid }, { x: p3.x, y: mid }, p3];
-  } else {
-    return points;
+  if (run.vertical) {
+    if (!keepsStubs(p0.x, through.x, p3.x, run.a.x)) return null;
+    return [p0, { x: through.x, y: p0.y }, { x: through.x, y: p3.y }, p3];
   }
+  if (!keepsStubs(p0.y, through.y, p3.y, run.a.y)) return null;
+  return [p0, { x: p0.x, y: through.y }, { x: p3.x, y: through.y }, p3];
+}
 
-  return latticePointsAlong(candidate).every(isFree) ? candidate : points;
+/**
+ * A* picks any of several equally cheap Z routes, often with the middle
+ * run right next to one end. This moves the middle run halfway between
+ * the ends, onto a visible grid line, if all points along it are free.
+ */
+function centreZ(points: Point[], isFree: (p: Point) => boolean): Point[] {
+  const p0 = points[0];
+  const p3 = points[points.length - 1];
+  if (!p0 || !p3) return points;
+  const half = { x: snap((p0.x + p3.x) / 2, grid()), y: snap((p0.y + p3.y) / 2, grid()) };
+  const candidate = moveMiddle(points, half);
+  return candidate && latticePointsAlong(candidate).every(isFree) ? candidate : points;
 }
 
 /** Lattice points along a polyline, without its two ends (they sit on shape borders). */

@@ -1,4 +1,5 @@
 import { arr, bool, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
+import type { Point } from "../core/geometry";
 import {
   COLOR_NAMES,
   type Doc,
@@ -79,6 +80,7 @@ const line = obj<LineShape>({
   from: endpoint,
   to: endpoint,
   routing: oneOf("straight", "orthogonal"),
+  middle: nullable(obj<Point>({ x: COORD, y: COORD })),
   style: oneOf("solid", "dashed"),
   color: COLOR,
   saturation: SATURATION,
