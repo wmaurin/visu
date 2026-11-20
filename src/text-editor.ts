@@ -59,6 +59,10 @@ export class TextEditor {
     setPlainTextEditable(content);
     content.spellcheck = false;
     content.textContent = shape.text;
+    // An empty editable has no line box, so the caret ignores text-align
+    // until the first character arrives. A placeholder <br> creates the line.
+    // innerText reads it as a trailing newline, which close() strips.
+    if (shape.text === "") content.append(document.createElement("br"));
     content.style.font = `${textStyle.fontWeight} ${textStyle.fontSize}px/${textStyle.lineHeight}px ${font.sans}`;
     content.style.color = textStyle.fill;
 
@@ -160,7 +164,9 @@ function focusAtEnd(el: HTMLElement): void {
   el.focus();
   const range = document.createRange();
   range.selectNodeContents(el);
-  range.collapse(false);
+  // When only the placeholder <br> is present, the caret belongs before it.
+  // After it, the caret would land on a second, empty line.
+  range.collapse(el.textContent === "");
   const selection = window.getSelection();
   selection?.removeAllRanges();
   selection?.addRange(range);
