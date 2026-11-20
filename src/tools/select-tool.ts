@@ -1,5 +1,5 @@
 import type { AppContext } from "../context";
-import { inflate, rectFromPoints } from "../core/geometry";
+import { rectFromPoints } from "../core/geometry";
 import { svgEl, type IconDef } from "../core/svg";
 import { settle } from "../model/hierarchy";
 import { descendants, itemsInside, pick, route } from "../model/queries";
@@ -12,7 +12,7 @@ import {
   type Ref,
   type Selection,
 } from "../model/types";
-import { highlight, outline, SELECTION_PADDING } from "../render/overlay";
+import { highlight, selectionOutline } from "../render/overlay";
 import { ui } from "../render/theme";
 import { frameHandler } from "../selection/frame";
 import type { Handler } from "../selection/handler";
@@ -238,6 +238,6 @@ export class SelectTool extends GestureTool {
       return points ? [highlight(points)] : [];
     }
     const box = handler.bounds(item);
-    return box ? [outline(inflate(box, SELECTION_PADDING), 4)] : [];
+    return box ? [selectionOutline(box)] : [];
   }
 }

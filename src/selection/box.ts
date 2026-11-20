@@ -1,9 +1,9 @@
 import type { AppContext } from "../context";
-import { grid, inflate, type Point, type Rect } from "../core/geometry";
+import { grid, type Point, type Rect } from "../core/geometry";
 import { settle } from "../model/hierarchy";
 import { descendants } from "../model/queries";
 import type { ChildKind, Item } from "../model/types";
-import { HANDLE_HIT_SLOP, HANDLE_SIZE, outline, SELECTION_PADDING, sizeReadout, squareHandle } from "../render/overlay";
+import { HANDLE_HIT_SLOP, HANDLE_SIZE, selectionBox, selectionOutline, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
 import type { CanvasPointer } from "../ui/canvas";
 import { within, type Handler } from "./handler";
@@ -59,7 +59,7 @@ export function boxBehaviour<T extends Item<BoxKind>>(
     bounds: (b) => b,
 
     overlay: (b) => [
-      outline(inflate(b, SELECTION_PADDING), 6),
+      selectionOutline(b),
       ...HANDLES.map((h) => squareHandle(handleCentre(b, h))),
     ],
 
@@ -100,7 +100,7 @@ function settleBox(ctx: AppContext, kind: BoxKind, id: string): void {
 }
 
 function handleCentre(r: Rect, h: ResizeHandle): Point {
-  const box = inflate(r, SELECTION_PADDING);
+  const box = selectionBox(r);
   return { x: box.x + h.fx * box.width, y: box.y + h.fy * box.height };
 }
 

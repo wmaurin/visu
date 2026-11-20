@@ -1,9 +1,9 @@
 import type { AppContext } from "../context";
-import { inflate, type Point, type Rect } from "../core/geometry";
+import type { Point, Rect } from "../core/geometry";
 import { setAttrs } from "../core/svg";
 import { anchoredBox, tagHeight, tagWidth } from "../layout/text";
 import type { HAlign, Item, VAlign } from "../model/types";
-import { outline, SELECTION_PADDING } from "../render/overlay";
+import { selectionOutline } from "../render/overlay";
 import { colours, font, fontWeight, textStyle, ui } from "../render/theme";
 import { boldToggle, numberField, type Control } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
@@ -41,7 +41,7 @@ export function tagBoldToggle<T extends TagItem>(ctx: AppContext, kind: TagKind)
 }
 
 export function tagOverlay(box: Rect | null): SVGElement[] {
-  return box ? [outline(inflate(box, SELECTION_PADDING), 4)] : [];
+  return box ? [selectionOutline(box)] : [];
 }
 
 /**

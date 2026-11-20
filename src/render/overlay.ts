@@ -1,18 +1,16 @@
-import type { Point, Rect } from "../core/geometry";
+import { grid, type Point, type Rect } from "../core/geometry";
 import { svgEl } from "../core/svg";
 import { allAnchors } from "../layout/anchors";
 import { pathData } from "../layout/path";
 import type { Target } from "../model/queries";
 import type { Shape } from "../model/types";
-import { colours, font, ui } from "./theme";
+import { colours, font, nodeStyle, ui } from "./theme";
 
 /**
  * Building blocks for editor feedback in the overlay layer. Each returns
  * fresh elements, so overlays are simply rebuilt on every change.
  */
 
-/** Gap between an item and its selection outline. */
-export const SELECTION_PADDING = 3;
 /** Edge length of a square handle. */
 export const HANDLE_SIZE = 8;
 /** Radius of a round handle. */
@@ -22,6 +20,25 @@ export const HANDLE_HIT_SLOP = 3;
 
 export function outline(box: Rect, rx: number): SVGRectElement {
   return svgEl("rect", { ...box, rx, fill: "none", stroke: ui.selection, "stroke-width": 1 });
+}
+
+/**
+ * The smallest rectangle on grid lines that contains `r`. Selection marks
+ * sit on it, so they line up with the grid: exactly on the border of
+ * rectangles and frames, rounded outwards around texts and labels.
+ */
+export function selectionBox(r: Rect): Rect {
+  const g = grid();
+  const x = Math.floor(r.x / g) * g;
+  const y = Math.floor(r.y / g) * g;
+  const right = Math.ceil((r.x + r.width) / g) * g;
+  const bottom = Math.ceil((r.y + r.height) / g) * g;
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+/** Selection outline of an item with the given bounds. Rounded like a rectangle, so it traces one exactly. */
+export function selectionOutline(bounds: Rect): SVGRectElement {
+  return outline(selectionBox(bounds), nodeStyle.rx);
 }
 
 export function squareHandle(c: Point): SVGRectElement {
@@ -62,8 +79,8 @@ export function highlight(points: readonly Point[]): SVGPathElement {
 /** Width × height next to the bottom right corner. */
 export function sizeReadout(r: Rect): SVGTextElement {
   const text = svgEl("text", {
-    x: r.x + r.width + 8 + SELECTION_PADDING,
-    y: r.y + r.height + 16 + SELECTION_PADDING,
+    x: r.x + r.width + 10,
+    y: r.y + r.height + 18,
     "font-family": font.mono,
     "font-size": 11,
     fill: colours.muted,
