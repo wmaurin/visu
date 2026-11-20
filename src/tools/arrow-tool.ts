@@ -1,29 +1,19 @@
-import { allAnchors, nearestAnchor } from "../anchors";
 import type { CanvasPointer } from "../canvas";
-import { GRID, type Point } from "../geometry";
-import { newId, type Endpoint, type Shape } from "../model";
+import { AnchorHints, findTarget, type Target } from "../connect";
+import { newId } from "../model";
 import { pathData, type Routing } from "../routing";
 import { setAttrs, svgEl, type IconDef } from "../svg";
-import { colours, linkStyle, ui } from "../theme";
+import { linkStyle } from "../theme";
 import type { Tool, ToolContext } from "./tool";
 
-/** How far outside a shape its anchors still catch the pointer. */
-const CATCH_MARGIN = GRID / 2;
 /** New lines follow the style guide: orthogonal paths only. */
 const DEFAULT_ROUTING: Routing = "orthogonal";
 
-interface Target {
-  readonly end: Endpoint;
-  readonly point: Point;
-  /** The shape the end attaches to, if any. */
-  readonly shape: Shape | undefined;
-}
-
 /**
- * Draws straight lines by dragging. Near a shape, every grid point on its
- * border is an anchor. The closest one is highlighted and the line attaches
- * there, so it follows the shape later. Away from shapes, the end sits on
- * a free grid point. Escape aborts the current drag.
+ * Draws lines by dragging. Near a shape, every grid point on its border is
+ * an anchor. The closest one is highlighted and the line attaches there, so
+ * it follows the shape later. Away from shapes, the end sits on a free grid
+ * point. Escape aborts the current drag.
  */
 export class ArrowTool implements Tool {
   readonly id = "arrow";
@@ -38,24 +28,26 @@ export class ArrowTool implements Tool {
 
   private start: Target | null = null;
   private readonly preview = svgEl("path", { ...linkStyle, "stroke-dasharray": "4 3" });
-  private readonly anchors = svgEl("g");
-  private readonly marker = svgEl("circle", { r: 4, fill: ui.selection });
+  private readonly hints: AnchorHints;
 
-  constructor(private readonly ctx: ToolContext) {}
+  constructor(private readonly ctx: ToolContext) {
+    this.hints = new AnchorHints(ctx.canvas);
+  }
 
   deactivate(): void {
     this.start = null;
-    this.clearOverlay();
+    this.preview.remove();
+    this.hints.clear();
   }
 
   pointerDown({ point, raw, event }: CanvasPointer): void {
     if (event.button !== 0) return;
-    this.start = this.target(point, raw);
+    this.start = findTarget(this.ctx.diagram, point, raw);
     this.update(this.start);
   }
 
   pointerMove({ point, raw }: CanvasPointer): void {
-    this.update(this.target(point, raw));
+    this.update(findTarget(this.ctx.diagram, point, raw));
   }
 
   pointerUp({ point, raw }: CanvasPointer): void {
@@ -63,7 +55,7 @@ export class ArrowTool implements Tool {
     if (!start) return;
     this.start = null;
 
-    const end = this.target(point, raw);
+    const end = findTarget(this.ctx.diagram, point, raw);
     if (end.point.x !== start.point.x || end.point.y !== start.point.y) {
       this.ctx.diagram.addLine({
         id: newId(),
@@ -77,8 +69,7 @@ export class ArrowTool implements Tool {
   }
 
   pointerCancel(): void {
-    this.start = null;
-    this.clearOverlay();
+    this.deactivate();
   }
 
   keyDown(event: KeyboardEvent): boolean {
@@ -90,40 +81,9 @@ export class ArrowTool implements Tool {
     return false;
   }
 
-  /** Anchor on the shape under the pointer, otherwise a free grid point. */
-  private target(snapped: Point, raw: Point): Target {
-    const shape = this.ctx.diagram.shapeAt(raw, CATCH_MARGIN);
-    if (!shape) {
-      return { end: { kind: "free", x: snapped.x, y: snapped.y }, point: snapped, shape };
-    }
-    const { side, offset } = nearestAnchor(shape, raw);
-    const end: Endpoint = { kind: "anchor", shapeId: shape.id, side, offset };
-    return { end, point: this.ctx.diagram.resolve(end)!, shape };
-  }
-
   private update(target: Target): void {
-    const overlay = this.ctx.canvas.overlayLayer;
-
     // Anchor dots of the hovered shape and of the shape the drag started on.
-    const shapes = new Set([this.start?.shape, target.shape].filter((s) => s !== undefined));
-    this.anchors.replaceChildren(
-      ...[...shapes].flatMap((s) =>
-        allAnchors(s).map((p) =>
-          svgEl("circle", {
-            cx: p.x,
-            cy: p.y,
-            r: 2.5,
-            fill: colours.paper,
-            stroke: ui.selection,
-            "stroke-width": 1,
-          }),
-        ),
-      ),
-    );
-    if (!this.anchors.isConnected) overlay.append(this.anchors);
-
-    setAttrs(this.marker, { cx: target.point.x, cy: target.point.y });
-    if (!this.marker.isConnected) overlay.append(this.marker);
+    this.hints.show(target, [this.start?.shape]);
 
     const route = this.start
       ? this.ctx.diagram.routeBetween(this.start.end, target.end, DEFAULT_ROUTING)
@@ -131,15 +91,9 @@ export class ArrowTool implements Tool {
     if (route) {
       setAttrs(this.preview, { d: pathData(route) });
       // Below the anchors, so the dots stay visible.
-      if (!this.preview.isConnected) overlay.prepend(this.preview);
+      if (!this.preview.isConnected) this.ctx.canvas.overlayLayer.prepend(this.preview);
     } else {
       this.preview.remove();
     }
-  }
-
-  private clearOverlay(): void {
-    this.preview.remove();
-    this.anchors.remove();
-    this.marker.remove();
   }
 }

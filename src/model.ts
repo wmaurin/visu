@@ -38,7 +38,7 @@ export interface LineShape {
   readonly routing: Routing;
 }
 
-export type LinePatch = Partial<Pick<LineShape, "routing">>;
+export type LinePatch = Partial<Pick<LineShape, "routing" | "from" | "to">>;
 
 type Listener = () => void;
 
@@ -151,10 +151,24 @@ export class Diagram {
     this.emit();
   }
 
+  /** Emits only on a real change, so pointer jitter does not trigger redraws. */
   updateLine(id: string, patch: LinePatch): void {
     const line = this.getLine(id);
-    if (!line || patch.routing === undefined || patch.routing === line.routing) return;
-    this.lines = this.lines.map((l) => (l.id === id ? { ...l, ...patch } : l));
+    if (!line) return;
+
+    const next: LineShape = {
+      ...line,
+      routing: patch.routing ?? line.routing,
+      from: patch.from ?? line.from,
+      to: patch.to ?? line.to,
+    };
+    const unchanged =
+      next.routing === line.routing &&
+      sameEndpoint(next.from, line.from) &&
+      sameEndpoint(next.to, line.to);
+    if (unchanged) return;
+
+    this.lines = this.lines.map((l) => (l.id === id ? next : l));
     this.emit();
   }
 
@@ -175,6 +189,14 @@ export class Diagram {
     this.routeCache.clear();
     for (const listener of this.listeners) listener();
   }
+}
+
+export function sameEndpoint(a: Endpoint, b: Endpoint): boolean {
+  if (a.kind === "free" && b.kind === "free") return a.x === b.x && a.y === b.y;
+  if (a.kind === "anchor" && b.kind === "anchor") {
+    return a.shapeId === b.shapeId && a.side === b.side && a.offset === b.offset;
+  }
+  return false;
 }
 
 export function newId(): string {
