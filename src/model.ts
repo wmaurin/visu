@@ -44,6 +44,12 @@ export class Diagram {
     this.emit();
   }
 
+  remove(id: string): void {
+    if (!this.get(id)) return;
+    this.shapes = this.shapes.filter((s) => s.id !== id);
+    this.emit();
+  }
+
   /** Emits only on a real change, so pointer jitter does not trigger redraws. */
   update(id: string, patch: ShapePatch): void {
     const shape = this.get(id);

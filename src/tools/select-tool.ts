@@ -1,6 +1,7 @@
 import { FormatBar } from "../format-bar";
 import type { CanvasPointer } from "../canvas";
-import { MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
+import { GRID, MIN_SHAPE_SIZE, type Point, type Rect } from "../geometry";
+import { newId, type Shape } from "../model";
 import { setAttrs, svgEl, type IconDef } from "../svg";
 import { colours, font, ui } from "../theme";
 import type { Tool, ToolContext } from "./tool";
@@ -51,6 +52,10 @@ interface Drag {
  * restores the shape, otherwise it clears the selection.
  * Double-clicking a shape edits its text. While a shape is selected, a
  * floating bar sets its font size and text alignment.
+ *
+ * Keyboard: Delete/Backspace removes the selection, Ctrl/Cmd+C copies it
+ * and Ctrl/Cmd+V pastes it. The clipboard is internal to the app on purpose,
+ * so foreign clipboard content is never read or parsed.
  */
 export class SelectTool implements Tool {
   readonly id = "select";
@@ -69,6 +74,10 @@ export class SelectTool implements Tool {
 
   private selectedId: string | null = null;
   private drag: Drag | null = null;
+  /** Snapshot taken on copy. Later edits to the original do not affect it. */
+  private clipboard: Shape | null = null;
+  /** Pastes since the last copy. Each one lands one grid step further. */
+  private pasteCount = 0;
   private unsubscribe: (() => void) | null = null;
 
   private readonly outline = svgEl("rect", {
@@ -167,17 +176,58 @@ export class SelectTool implements Tool {
   }
 
   keyDown(event: KeyboardEvent): boolean {
-    if (event.key !== "Escape") return false;
+    if (event.key === "Escape") {
+      if (this.drag) {
+        this.revertDrag();
+        return true;
+      }
+      if (this.selectedId) {
+        this.select(null);
+        return true;
+      }
+      return false;
+    }
 
-    if (this.drag) {
-      this.revertDrag();
-      return true;
-    }
-    if (this.selectedId) {
-      this.select(null);
-      return true;
-    }
+    // No clipboard or delete actions in the middle of a drag.
+    if (this.drag) return false;
+
+    const command = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
+    const key = event.key.toLowerCase();
+
+    if (command && key === "c") return this.copy();
+    if (command && key === "v") return this.paste();
+    if (!command && (event.key === "Delete" || event.key === "Backspace")) return this.deleteSelected();
     return false;
+  }
+
+  private copy(): boolean {
+    const shape = this.selectedShape();
+    if (!shape) return false;
+    this.clipboard = { ...shape };
+    this.pasteCount = 0;
+    return true;
+  }
+
+  private paste(): boolean {
+    if (!this.clipboard) return false;
+    this.pasteCount += 1;
+    const offset = this.pasteCount * GRID;
+    const id = newId();
+    this.ctx.diagram.add({
+      ...this.clipboard,
+      id,
+      x: this.clipboard.x + offset,
+      y: this.clipboard.y + offset,
+    });
+    this.select(id);
+    return true;
+  }
+
+  private deleteSelected(): boolean {
+    if (!this.selectedId) return false;
+    // Removing the shape also clears the selection on the next render.
+    this.ctx.diagram.remove(this.selectedId);
+    return true;
   }
 
   private hoverCursor(p: Point): string {
