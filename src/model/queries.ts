@@ -82,7 +82,7 @@ export function labelAt(doc: Doc, p: Point): LineLabel | undefined {
 
 /** Box of a free text's tag, or null while it is empty. */
 export function textBox(text: FreeText): Rect | null {
-  return text.text === "" ? null : tagBox(text, text.text, text.fontSize);
+  return text.text === "" ? null : tagBox(text, text.text, text.fontSize, text.align, text.valign);
 }
 
 export function textAt(doc: Doc, p: Point): FreeText | undefined {

@@ -38,7 +38,16 @@ export class TextTool implements Tool {
     const existing = textAt(diagram.doc, raw);
     const id = existing?.id ?? newId();
     if (!existing) {
-      diagram.add("texts", { id, x: point.x, y: point.y, text: "", fontSize: tagStyle.defaultFontSize });
+      // The click point becomes the top left corner, as in most editors.
+      diagram.add("texts", {
+        id,
+        x: point.x,
+        y: point.y,
+        text: "",
+        fontSize: tagStyle.defaultFontSize,
+        align: "left",
+        valign: "top",
+      });
     }
     selection.set({ kind: "texts", id });
     editor.open({ kind: "texts", id }, textField(this.ctx, id));

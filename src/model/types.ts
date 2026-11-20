@@ -51,14 +51,20 @@ export interface LineLabel {
   readonly fontSize: number;
 }
 
-/** Free standing text in a tag, centred on (x, y). */
+/**
+ * Free standing text. (x, y) is its anchor, the point of the text box
+ * named by `align` and `valign`, e.g. the top left corner. The anchor
+ * snaps to the grid, so text lines up with shape edges.
+ */
 export interface FreeText {
   readonly id: string;
   readonly x: number;
   readonly y: number;
   readonly text: string;
-  /** In px. The tag around the text scales with it. */
+  /** In px. The box around the text scales with it. */
   readonly fontSize: number;
+  readonly align: HAlign;
+  readonly valign: VAlign;
 }
 
 /**

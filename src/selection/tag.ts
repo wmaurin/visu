@@ -1,34 +1,39 @@
 import type { AppContext } from "../context";
 import { inflate, type Point, type Rect } from "../core/geometry";
 import { setAttrs } from "../core/svg";
-import { tagHeight, tagWidth } from "../layout/text";
-import type { Item } from "../model/types";
+import { anchoredBox, tagHeight, tagWidth } from "../layout/text";
+import type { HAlign, Item, VAlign } from "../model/types";
 import { outline, SELECTION_PADDING } from "../render/overlay";
 import { colours, font, textStyle, ui } from "../render/theme";
-import { FloatingBar, numberField } from "../ui/floating-bar";
+import { numberField, type Control } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 
 /**
- * Shared behaviour of items shown as text in a framed tag: line labels and
- * free texts. The tag scales with the font size.
+ * Shared behaviour of items shown as text in a tag box: line labels and
+ * free texts. The box scales with the font size.
  */
 export type TagKind = "labels" | "texts";
 type TagItem = Item<TagKind>;
 
+/** Where a tag sits: the point its `align`/`valign` side is fixed to. */
+export interface TagAnchor {
+  readonly point: Point;
+  readonly align: HAlign;
+  readonly valign: VAlign;
+}
+
 /** Room for a few characters while a tag is still short, in em. */
 const MIN_EDIT_WIDTH_EM = 6;
 
-export function tagBar<T extends TagItem>(ctx: AppContext, kind: TagKind): FloatingBar<T> {
-  return new FloatingBar<T>(ctx.canvas, "Text format", [
-    numberField({
-      label: "Font size",
-      unit: "px",
-      min: textStyle.minFontSize,
-      max: textStyle.maxFontSize,
-      read: (t) => t.fontSize,
-      write: (t, fontSize) => ctx.diagram.update(kind, t.id, { fontSize }),
-    }),
-  ]);
+export function fontSizeField<T extends TagItem>(ctx: AppContext, kind: TagKind): Control<T> {
+  return numberField({
+    label: "Font size",
+    unit: "px",
+    min: textStyle.minFontSize,
+    max: textStyle.maxFontSize,
+    read: (t) => t.fontSize,
+    write: (t, fontSize) => ctx.diagram.update(kind, t.id, { fontSize }),
+  });
 }
 
 export function tagOverlay(box: Rect | null): SVGElement[] {
@@ -36,10 +41,10 @@ export function tagOverlay(box: Rect | null): SVGElement[] {
 }
 
 /**
- * Single line text field centred on the tag, sized like it. It grows with
- * its content. A tag left empty is removed.
+ * Single line text field on the tag, sized like it and fixed to the same
+ * anchor, so it grows the same way the text will. A tag left empty is removed.
  */
-export function tagField(ctx: AppContext, kind: TagKind, id: string, centre: () => Point | null): FieldSpec {
+export function tagField(ctx: AppContext, kind: TagKind, id: string, anchor: () => TagAnchor | null): FieldSpec {
   const { diagram } = ctx;
   return {
     multiline: false,
@@ -58,15 +63,16 @@ export function tagField(ctx: AppContext, kind: TagKind, id: string, centre: () 
 
     layout(frame, _root, field) {
       const item = diagram.get(kind, id);
-      const c = centre();
-      if (!item || !c) return false;
+      const a = anchor();
+      if (!item || !a) return false;
 
       const { fontSize } = item;
       const value = (field as HTMLInputElement).value;
       const width = Math.max(tagWidth(value, fontSize), MIN_EDIT_WIDTH_EM * fontSize);
-      const height = tagHeight(fontSize);
+      const box = anchoredBox(a.point, width, tagHeight(fontSize), a.align, a.valign);
       field.style.fontSize = `${fontSize}px`;
-      setAttrs(frame, { x: c.x - width / 2, y: c.y - height / 2, width, height });
+      field.style.textAlign = a.align;
+      setAttrs(frame, { ...box });
       return true;
     },
 

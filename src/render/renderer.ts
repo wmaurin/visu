@@ -1,6 +1,6 @@
 import { svgEl } from "../core/svg";
 import { pathData } from "../layout/path";
-import { wrapText } from "../layout/text";
+import { TAG_PADDING_X, wrapText } from "../layout/text";
 import type { Rect } from "../core/geometry";
 import { labelBox, route, textBox } from "../model/queries";
 import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
@@ -78,15 +78,26 @@ function renderLine(doc: Doc, line: LineShape): SVGElement[] {
  * Text centred in a tag box, shared by line labels and free texts. Labels
  * draw the box as a frame that covers the line, free texts stay bare.
  */
-function renderTag(item: LineLabel | FreeText, box: Rect | null, framed: boolean): SVGElement[] {
+function renderTag(
+  item: LineLabel | FreeText,
+  box: Rect | null,
+  framed: boolean,
+  align: HAlign = "center",
+): SVGElement[] {
   if (!box) return [];
   const text = svgEl("text", {
-    x: box.x + box.width / 2,
+    ...tagStyle.text,
+    // Glyphs sit on the anchored side, inset by the tag padding.
+    x: {
+      left: box.x + TAG_PADDING_X,
+      center: box.x + box.width / 2,
+      right: box.x + box.width - TAG_PADDING_X,
+    }[align],
+    "text-anchor": TEXT_ANCHOR[align],
     // Baseline of a glyph vertically centred in the tag.
     y: box.y + box.height / 2 + item.fontSize * 0.36,
     "font-size": item.fontSize,
     style: "white-space: pre",
-    ...tagStyle.text,
   });
   text.textContent = item.text;
   const frame = framed ? [svgEl("rect", { ...box, ...tagStyle.box })] : [];
@@ -105,6 +116,6 @@ export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null)
     ...doc.lines.flatMap((l) => renderLine(doc, l)),
     ...doc.shapes.map((s) => renderShape(s, hidden("shapes", s.id))),
     ...doc.labels.flatMap((l) => (hidden("labels", l.id) ? [] : renderTag(l, labelBox(doc, l), true))),
-    ...doc.texts.flatMap((t) => (hidden("texts", t.id) ? [] : renderTag(t, textBox(t), false))),
+    ...doc.texts.flatMap((t) => (hidden("texts", t.id) ? [] : renderTag(t, textBox(t), false, t.align))),
   );
 }

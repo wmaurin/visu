@@ -1,5 +1,9 @@
 import type { Point, Rect } from "../core/geometry";
+import type { HAlign, VAlign } from "../model/types";
 import { cssFont } from "../render/theme";
+
+/** Gap between the text and the left and right edge of its tag. */
+export const TAG_PADDING_X = 8;
 
 /**
  * Tag size from the style guide, scaled with the font size. At the guide's
@@ -12,14 +16,36 @@ export function tagHeight(fontSize: number): number {
 }
 
 export function tagWidth(text: string, fontSize: number): number {
-  return Math.ceil((text.length * fontSize * 0.6 + 16) / 2) * 2;
+  return Math.ceil((text.length * fontSize * 0.6 + 2 * TAG_PADDING_X) / 2) * 2;
 }
 
-/** Box of a tag centred on `centre`. */
-export function tagBox(centre: Point, text: string, fontSize: number): Rect {
-  const width = tagWidth(text, fontSize);
-  const height = tagHeight(fontSize);
-  return { x: centre.x - width / 2, y: centre.y - height / 2, width, height };
+/** Box of the given size whose `align`/`valign` point lies on `anchor`. */
+export function anchoredBox(anchor: Point, width: number, height: number, align: HAlign, valign: VAlign): Rect {
+  return {
+    x: { left: anchor.x, center: anchor.x - width / 2, right: anchor.x - width }[align],
+    y: { top: anchor.y, middle: anchor.y - height / 2, bottom: anchor.y - height }[valign],
+    width,
+    height,
+  };
+}
+
+/** The point of `box` that `align`/`valign` name. The inverse of `anchoredBox`. */
+export function anchorOf(box: Rect, align: HAlign, valign: VAlign): Point {
+  return {
+    x: { left: box.x, center: box.x + box.width / 2, right: box.x + box.width }[align],
+    y: { top: box.y, middle: box.y + box.height / 2, bottom: box.y + box.height }[valign],
+  };
+}
+
+/** Box of a tag anchored at `anchor`, centred unless told otherwise. */
+export function tagBox(
+  anchor: Point,
+  text: string,
+  fontSize: number,
+  align: HAlign = "center",
+  valign: VAlign = "middle",
+): Rect {
+  return anchoredBox(anchor, tagWidth(text, fontSize), tagHeight(fontSize), align, valign);
 }
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;

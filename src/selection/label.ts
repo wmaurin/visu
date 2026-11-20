@@ -2,9 +2,10 @@ import type { AppContext } from "../context";
 import { fractionAlong, pointAlong } from "../layout/path";
 import { labelBox, route } from "../model/queries";
 import type { LineLabel } from "../model/types";
+import { FloatingBar } from "../ui/floating-bar";
 import type { FieldSpec } from "../ui/inline-editor";
 import type { Handler } from "./handler";
-import { tagBar, tagField, tagOverlay } from "./tag";
+import { fontSizeField, tagField, tagOverlay } from "./tag";
 
 /** Line labels: slide along their line, font size in the bar, double-click to edit. */
 export function labelHandler(ctx: AppContext): Handler<LineLabel> {
@@ -16,7 +17,7 @@ export function labelHandler(ctx: AppContext): Handler<LineLabel> {
 
   return {
     cursor: "move",
-    bar: tagBar(ctx, "labels"),
+    bar: new FloatingBar<LineLabel>(ctx.canvas, "Label format", [fontSizeField(ctx, "labels")]),
     bounds: (l) => labelBox(diagram.doc, l),
     overlay: (l) => tagOverlay(labelBox(diagram.doc, l)),
 
@@ -38,6 +39,6 @@ export function labelField(ctx: AppContext, id: string): FieldSpec {
     const label = ctx.diagram.get("labels", id);
     const line = label && ctx.diagram.get("lines", label.lineId);
     const pts = line && route(ctx.diagram.doc, line);
-    return label && pts ? pointAlong(pts, label.t) : null;
+    return label && pts ? { point: pointAlong(pts, label.t), align: "center", valign: "middle" } : null;
   });
 }

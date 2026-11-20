@@ -2,7 +2,7 @@ import type { AppContext } from "../context";
 import { inflate, MIN_SHAPE_SIZE, type Point, type Rect } from "../core/geometry";
 import { setAttrs } from "../core/svg";
 import type { Patch } from "../model/diagram";
-import type { HAlign, RectShape, VAlign } from "../model/types";
+import type { RectShape, VAlign } from "../model/types";
 import {
   HANDLE_HIT_SLOP,
   HANDLE_SIZE,
@@ -14,8 +14,9 @@ import {
 import { cssFont, lineHeightFor, textStyle } from "../render/theme";
 import type { Gesture } from "../tools/tool";
 import type { CanvasPointer } from "../ui/canvas";
-import { dropdown, FloatingBar, numberField, type Choice } from "../ui/floating-bar";
+import { dropdown, FloatingBar, numberField } from "../ui/floating-bar";
 import { focusAtEnd, makePlainTextEditable, type FieldSpec } from "../ui/inline-editor";
+import { H_ALIGN, V_ALIGN } from "./align";
 import { within, type Handler } from "./handler";
 
 type HandleId = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
@@ -38,20 +39,6 @@ const HANDLES: readonly ResizeHandle[] = [
   { id: "e", fx: 1, fy: 0.5, cursor: "ew-resize" },
   { id: "s", fx: 0.5, fy: 1, cursor: "ns-resize" },
   { id: "w", fx: 0, fy: 0.5, cursor: "ew-resize" },
-];
-
-// Icons in Lucide style (24 × 24 grid, round caps).
-const H_ALIGN: ReadonlyArray<Choice<HAlign>> = [
-  { value: "left", label: "Left", icon: [["path", { d: "M3 6h18M3 12h12M3 18h15" }]] },
-  { value: "center", label: "Centre", icon: [["path", { d: "M3 6h18M6 12h12M4.5 18h15" }]] },
-  { value: "right", label: "Right", icon: [["path", { d: "M3 6h18M9 12h12M6 18h15" }]] },
-];
-
-const BOX = ["rect", { x: 8, y: 7, width: 8, height: 10, rx: 1.5 }] as const;
-const V_ALIGN: ReadonlyArray<Choice<VAlign>> = [
-  { value: "top", label: "Top", icon: [["path", { d: "M4 3h16" }], BOX] },
-  { value: "middle", label: "Middle", icon: [["path", { d: "M3 12h5M16 12h5" }], BOX] },
-  { value: "bottom", label: "Bottom", icon: [["path", { d: "M4 21h16" }], BOX] },
 ];
 
 const JUSTIFY: Record<VAlign, string> = { top: "flex-start", middle: "center", bottom: "flex-end" };
