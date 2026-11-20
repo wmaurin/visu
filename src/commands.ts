@@ -1,6 +1,6 @@
 import type { AppContext } from "./context";
 import { download, pickFile, readTextFile } from "./core/files";
-import { GRID } from "./core/geometry";
+import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
 import { newId } from "./model/diagram";
@@ -44,7 +44,7 @@ export function createCommands({ diagram, selection, editor }: AppContext) {
   const paste: Command = () => {
     if (!clipboard) return false;
     pastes += 1;
-    const offset = pastes * GRID;
+    const offset = pastes * grid();
     const { kind, item } = clipboard;
     const id = newId();
     const moved = { ...item, id, x: item.x + offset, y: item.y + offset };

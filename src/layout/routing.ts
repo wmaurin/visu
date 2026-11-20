@@ -1,4 +1,4 @@
-import { GRID, snap, type Point, type Rect } from "../core/geometry";
+import { grid, snap, type Point, type Rect } from "../core/geometry";
 import type { Routing } from "../model/types";
 
 /** Direction index: 0 east, 1 south, 2 west, 3 north. */
@@ -64,8 +64,8 @@ interface Bounds {
 }
 
 function boundsAround(points: readonly Point[], margin: number): Bounds {
-  const is = points.map((p) => p.x / GRID);
-  const js = points.map((p) => p.y / GRID);
+  const is = points.map((p) => p.x / grid());
+  const js = points.map((p) => p.y / grid());
   return {
     minI: Math.floor(Math.min(...is)) - margin,
     minJ: Math.floor(Math.min(...js)) - margin,
@@ -81,19 +81,19 @@ function search(a: RouteEnd, b: RouteEnd, obstacles: readonly Rect[], bounds: Bo
   const cells = width * height;
 
   const cell = (i: number, j: number) => (j - minJ) * width + (i - minI);
-  const si = a.point.x / GRID;
-  const sj = a.point.y / GRID;
-  const ti = b.point.x / GRID;
-  const tj = b.point.y / GRID;
+  const si = a.point.x / grid();
+  const sj = a.point.y / grid();
+  const ti = b.point.x / grid();
+  const tj = b.point.y / grid();
   const start = cell(si, sj);
   const target = cell(ti, tj);
 
   const blocked = new Uint8Array(cells);
   for (const r of obstacles) {
-    const i0 = Math.max(Math.ceil(r.x / GRID), minI);
-    const i1 = Math.min(Math.floor((r.x + r.width) / GRID), maxI);
-    const j0 = Math.max(Math.ceil(r.y / GRID), minJ);
-    const j1 = Math.min(Math.floor((r.y + r.height) / GRID), maxJ);
+    const i0 = Math.max(Math.ceil(r.x / grid()), minI);
+    const i1 = Math.min(Math.floor((r.x + r.width) / grid()), maxI);
+    const j0 = Math.max(Math.ceil(r.y / grid()), minJ);
+    const j1 = Math.min(Math.floor((r.y + r.height) / grid()), maxJ);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) blocked[cell(i, j)] = 1;
   }
   blocked[start] = 0;
@@ -115,8 +115,8 @@ function search(a: RouteEnd, b: RouteEnd, obstacles: readonly Rect[], bounds: Bo
   }
 
   const isFree = (p: Point) => {
-    const i = p.x / GRID;
-    const j = p.y / GRID;
+    const i = p.x / grid();
+    const j = p.y / grid();
     return i >= minI && i <= maxI && j >= minJ && j <= maxJ && !blocked[cell(i, j)];
   };
 
@@ -178,7 +178,7 @@ function toPolyline(goal: number, from: Int32Array, width: number, minI: number,
   const points: Point[] = [];
   for (let s = goal; s !== -1; s = from[s]!) {
     const c = s >> 2;
-    points.push({ x: ((c % width) + minI) * GRID, y: (Math.floor(c / width) + minJ) * GRID });
+    points.push({ x: ((c % width) + minI) * grid(), y: (Math.floor(c / width) + minJ) * grid() });
   }
   return simplify(points.reverse());
 }
@@ -217,9 +217,9 @@ function gridPointsAlong(points: readonly Point[]): Point[] {
   for (let k = 1; k < points.length; k++) {
     const a = points[k - 1]!;
     const b = points[k]!;
-    const steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) / GRID;
-    const sx = Math.sign(b.x - a.x) * GRID;
-    const sy = Math.sign(b.y - a.y) * GRID;
+    const steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) / grid();
+    const sx = Math.sign(b.x - a.x) * grid();
+    const sy = Math.sign(b.y - a.y) * grid();
     for (let s = 1; s <= steps; s++) out.push({ x: a.x + s * sx, y: a.y + s * sy });
   }
   out.pop(); // The route's end point sits on a shape border.
@@ -260,7 +260,7 @@ function simplify(points: readonly Point[]): Point[] {
 }
 
 function onGrid(p: Point): boolean {
-  return p.x % GRID === 0 && p.y % GRID === 0;
+  return p.x % grid() === 0 && p.y % grid() === 0;
 }
 
 /** Binary min-heap of (priority, value) pairs. */

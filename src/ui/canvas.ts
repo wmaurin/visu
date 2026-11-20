@@ -1,5 +1,5 @@
-import { GRID, snapPoint, type Point } from "../core/geometry";
-import { svgEl } from "../core/svg";
+import { grid as gridSize, snapPoint, type Point } from "../core/geometry";
+import { setAttrs, svgEl } from "../core/svg";
 import { arrowMarker } from "../render/markers";
 import { colours } from "../render/theme";
 
@@ -35,23 +35,23 @@ export class Canvas {
     r: GRID_DOT_SIZE / 2,
     fill: colours.diagram,
   });
+  /** Repeats the dot once per grid step, so dots sit exactly on the snap points. */
+  private readonly gridPattern = svgEl(
+    "pattern",
+    {
+      id: "grid-dots",
+      // The offset centres each dot on its grid coordinate.
+      x: -GRID_DOT_SIZE / 2,
+      y: -GRID_DOT_SIZE / 2,
+      patternUnits: "userSpaceOnUse",
+    },
+    [this.gridDot],
+  );
 
   /** `host` is the positioned HTML container, also used for floating UI. */
   constructor(readonly host: HTMLElement) {
-    const pattern = svgEl(
-      "pattern",
-      {
-        id: "grid-dots",
-        // Dots sit exactly on the snap points, so spacing must equal GRID.
-        // The offset centres each dot on its grid coordinate.
-        x: -GRID_DOT_SIZE / 2,
-        y: -GRID_DOT_SIZE / 2,
-        width: GRID,
-        height: GRID,
-        patternUnits: "userSpaceOnUse",
-      },
-      [this.gridDot],
-    );
+    this.updateGrid();
+    const pattern = this.gridPattern;
 
     const grid = svgEl("rect", {
       x: -GRID_EXTENT / 2,
@@ -101,6 +101,11 @@ export class Canvas {
     const screen = new DOMPoint(p.x, p.y).matrixTransform(ctm ?? undefined);
     const hostBox = this.host.getBoundingClientRect();
     return { x: screen.x - hostBox.left, y: screen.y - hostBox.top };
+  }
+
+  /** Matches the dot spacing to the current grid size. */
+  updateGrid(): void {
+    setAttrs(this.gridPattern, { width: gridSize(), height: gridSize() });
   }
 
   /** 0 hides the grid, 100 draws black dots. */

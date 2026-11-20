@@ -1,4 +1,4 @@
-import { containsPoint, GRID, inflate, type Point, type Rect } from "../core/geometry";
+import { containsPoint, grid, inflate, type Point, type Rect } from "../core/geometry";
 import { anchorPoint, nearestAnchor, SIDE_OUT } from "../layout/anchors";
 import { distanceToPolyline, pointAlong } from "../layout/path";
 import { computeRoute, type RouteEnd } from "../layout/routing";
@@ -12,13 +12,14 @@ import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, Ref, R
 
 /** How close to a line a click must be to hit it. */
 const LINE_HIT_TOLERANCE = 5;
-/** How far outside a shape its anchors still catch the pointer. */
-const CATCH_MARGIN = GRID / 2;
 /** Export frame title: font size and height of its clickable area. */
 export const FRAME_TITLE_SIZE = 11;
 const FRAME_TITLE_HEIGHT = 20;
 
-/** Routes per document version. A new Doc starts with an empty cache. */
+/**
+ * Routes per document version and grid size. A new Doc starts with an
+ * empty cache, and routes for another grid size never mix.
+ */
 const routes = new WeakMap<Doc, Map<string, Point[] | null>>();
 
 export function byId<T extends { readonly id: string }>(items: readonly T[], id: string): T | undefined {
@@ -48,10 +49,11 @@ export function routeBetween(doc: Doc, from: Endpoint, to: Endpoint, routing: Ro
 export function route(doc: Doc, line: LineShape): Point[] | null {
   let cache = routes.get(doc);
   if (!cache) routes.set(doc, (cache = new Map()));
-  let points = cache.get(line.id);
+  const key = `${grid()}:${line.id}`;
+  let points = cache.get(key);
   if (points === undefined) {
     points = routeBetween(doc, line.from, line.to, line.routing);
-    cache.set(line.id, points);
+    cache.set(key, points);
   }
   return points;
 }
@@ -143,7 +145,8 @@ export interface Target {
 
 /** Anchor on the shape under the pointer, otherwise a free grid point. */
 export function connectionTarget(doc: Doc, snapped: Point, raw: Point): Target {
-  const shape = shapeAt(doc, raw, CATCH_MARGIN);
+  // Anchors still catch the pointer half a grid step outside the shape.
+  const shape = shapeAt(doc, raw, grid() / 2);
   if (!shape) return { end: { kind: "free", x: snapped.x, y: snapped.y }, point: snapped, shape };
   const end: Endpoint = { kind: "anchor", shapeId: shape.id, ...nearestAnchor(shape, raw) };
   return { end, point: resolve(doc, end)!, shape };

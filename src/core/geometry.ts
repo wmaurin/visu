@@ -10,21 +10,33 @@ export interface Rect {
   height: number;
 }
 
+/** Grid sizes on offer. Multiples of 8, the base unit of the style guide. */
+export const GRID_SIZES = [8, 16, 24, 32] as const;
+export type GridSize = (typeof GRID_SIZES)[number];
+
+let gridSize: GridSize = 16;
+
 /**
- * Snap step and grid dot spacing in diagram units. Must stay a multiple
- * of 8, the base unit of the style guide.
+ * Snap step and grid dot spacing in diagram units. A setting, so read it
+ * through this function wherever it is needed, never cache it.
  */
-export const GRID = 16;
+export function grid(): GridSize {
+  return gridSize;
+}
+
+export function setGrid(size: GridSize): void {
+  gridSize = size;
+}
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function snap(value: number, step = GRID): number {
+export function snap(value: number, step: number = grid()): number {
   return Math.round(value / step) * step;
 }
 
-export function snapPoint(p: Point, step = GRID): Point {
+export function snapPoint(p: Point, step: number = grid()): Point {
   return { x: snap(p.x, step), y: snap(p.y, step) };
 }
 

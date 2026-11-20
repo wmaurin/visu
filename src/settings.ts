@@ -1,18 +1,23 @@
+import { GRID_SIZES, type GridSize } from "./core/geometry";
 import { Observable } from "./core/observable";
 
 /** Editor preferences. Not part of the diagram, never exported with it. */
 export interface Settings {
+  /** Snap step and dot spacing in px. */
+  readonly gridSize: GridSize;
   /** Visibility of the grid dots, 0 (hidden) to 100 (black). */
   readonly gridSaturation: number;
 }
 
 const DEFAULTS: Settings = {
+  gridSize: 16,
   // Close to the former light grey dots.
   gridSaturation: 40,
 };
 
 /** Validation per setting. The single source of what a valid value is. */
 const VALID: { readonly [K in keyof Settings]: (value: unknown) => boolean } = {
+  gridSize: (v) => GRID_SIZES.includes(v as GridSize),
   gridSaturation: (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100,
 };
 

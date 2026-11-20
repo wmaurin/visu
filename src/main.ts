@@ -1,6 +1,7 @@
 import "./style.css";
 import { createCommands, type Command } from "./commands";
 import type { AppContext } from "./context";
+import { GRID_SIZES, setGrid } from "./core/geometry";
 import { Observable } from "./core/observable";
 import { Diagram } from "./model/diagram";
 import { sameRef, type Ref } from "./model/types";
@@ -14,7 +15,7 @@ import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
 import { projectBar } from "./ui/project-bar";
 import { bind, createSettings } from "./settings";
-import { rangeSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
+import { rangeSetting, selectSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
 
 function requireElement(id: string): HTMLElement {
@@ -48,7 +49,15 @@ const ctx: AppContext = {
   settings: createSettings(),
 };
 
-const applySettings = () => canvas.setGridSaturation(ctx.settings.get().gridSaturation);
+/** Pushes the settings into the parts that depend on them, then redraws. */
+function applySettings(): void {
+  const { gridSize, gridSaturation } = ctx.settings.get();
+  setGrid(gridSize);
+  canvas.updateGrid();
+  canvas.setGridSaturation(gridSaturation);
+  // Routes and anchors follow the grid.
+  render();
+}
 ctx.settings.subscribe(applySettings);
 applySettings();
 
@@ -76,7 +85,20 @@ const settingsCategories: SettingsCategory[] = [
       ["circle", { cx: 12, cy: 12, r: 4 }],
       ["path", { d: "M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" }],
     ],
+  },
+  {
+    id: "grid",
+    label: "Grid",
+    // Lucide "grid-3x3"
+    icon: [
+      ["rect", { x: 3, y: 3, width: 18, height: 18, rx: 2 }],
+      ["path", { d: "M3 9h18M3 15h18M9 3v18M15 3v18" }],
+    ],
     controls: [
+      selectSetting(
+        { label: "Grid size", options: GRID_SIZES.map((size) => ({ value: size, label: `${size} px` })) },
+        bind(ctx.settings, "gridSize"),
+      ),
       rangeSetting({ label: "Grid saturation", min: 0, max: 100, unit: "%" }, bind(ctx.settings, "gridSaturation")),
     ],
   },

@@ -1,4 +1,4 @@
-import { clamp, GRID, snap, type Point, type Rect } from "../core/geometry";
+import { clamp, grid, snap, type Point, type Rect } from "../core/geometry";
 import type { Side } from "../model/types";
 import type { Dir } from "./routing";
 
@@ -49,10 +49,10 @@ export function nearestAnchor(r: Rect, p: Point): { side: Side; offset: number }
  */
 export function allAnchors(r: Rect): Point[] {
   const points: Point[] = [];
-  for (let dx = 0; dx <= r.width; dx += GRID) {
+  for (let dx = 0; dx <= r.width; dx += grid()) {
     points.push({ x: r.x + dx, y: r.y }, { x: r.x + dx, y: r.y + r.height });
   }
-  for (let dy = GRID; dy < r.height; dy += GRID) {
+  for (let dy = grid(); dy < r.height; dy += grid()) {
     points.push({ x: r.x, y: r.y + dy }, { x: r.x + r.width, y: r.y + dy });
   }
   return points;

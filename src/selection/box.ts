@@ -1,5 +1,5 @@
 import type { AppContext } from "../context";
-import { GRID, inflate, type Point, type Rect } from "../core/geometry";
+import { grid, inflate, type Point, type Rect } from "../core/geometry";
 import type { Item } from "../model/types";
 import { HANDLE_HIT_SLOP, HANDLE_SIZE, outline, SELECTION_PADDING, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
@@ -14,7 +14,9 @@ export type BoxKind = "shapes" | "frames";
  * size. Shapes use two grid steps, so their centre always lies on a grid
  * point and lines can attach there. Frames need no centre.
  */
-export const SIZE_STEP: Record<BoxKind, number> = { shapes: 2 * GRID, frames: GRID };
+export function sizeStep(kind: BoxKind): number {
+  return kind === "shapes" ? 2 * grid() : grid();
+}
 
 /** A length rounded to the size step, never below one step. */
 export function snapSize(length: number, step: number): number {
@@ -81,7 +83,7 @@ function resize(ctx: AppContext, kind: BoxKind, origin: Item<BoxKind>, handle: H
   return {
     move: ({ point }) => {
       const delta = { x: point.x - start.point.x, y: point.y - start.point.y };
-      const bounds = resizeBounds(origin, handle, delta, SIZE_STEP[kind]);
+      const bounds = resizeBounds(origin, handle, delta, sizeStep(kind));
       ctx.diagram.update(kind, origin.id, bounds);
       overlay.replaceChildren(sizeReadout(bounds));
     },

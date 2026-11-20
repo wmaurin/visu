@@ -6,7 +6,7 @@ import { nextFrameName } from "../model/queries";
 import type { Item } from "../model/types";
 import { sizeReadout } from "../render/overlay";
 import { textStyle } from "../render/theme";
-import { SIZE_STEP, type BoxKind } from "../selection/box";
+import { sizeStep, type BoxKind } from "../selection/box";
 import type { CanvasPointer } from "../ui/canvas";
 import { GestureTool, type Gesture } from "./tool";
 
@@ -47,7 +47,7 @@ export class BoxTool<C extends BoxKind> extends GestureTool {
     const overlay = canvas.overlay();
     const id = newId();
 
-    const step = SIZE_STEP[kind];
+    const step = sizeStep(kind);
     // Rounds to the size step, down to zero, so a tiny drag creates nothing.
     const toStep = (d: number) => Math.sign(d) * Math.round(Math.abs(d) / step) * step;
 

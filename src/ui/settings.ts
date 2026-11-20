@@ -54,6 +54,36 @@ export function rangeSetting(spec: RangeSpec, binding: SettingBinding<number>): 
   return row;
 }
 
+export interface SelectSpec<V> {
+  readonly label: string;
+  readonly options: ReadonlyArray<{ readonly value: V; readonly label: string }>;
+}
+
+/** Drop-down list with label. Follows the setting, also when changed elsewhere. */
+export function selectSetting<V>(spec: SelectSpec<V>, binding: SettingBinding<V>): HTMLElement {
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", spec.label);
+  spec.options.forEach((option, i) => select.add(new Option(option.label, String(i))));
+
+  const sync = () => {
+    select.value = String(spec.options.findIndex((o) => o.value === binding.read()));
+  };
+  select.addEventListener("change", () => {
+    const option = spec.options[Number(select.value)];
+    if (option) binding.write(option.value);
+  });
+  binding.subscribe(sync);
+  sync();
+
+  const name = document.createElement("span");
+  name.textContent = spec.label;
+
+  const row = document.createElement("label");
+  row.className = "setting setting-inline";
+  row.append(name, select);
+  return row;
+}
+
 // Lucide "upload" and "download"
 const UPLOAD: IconDef = [["path", { d: "M12 3v12M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5" }]];
 const DOWNLOAD: IconDef = [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]];
