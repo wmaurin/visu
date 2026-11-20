@@ -21,6 +21,11 @@ export function snapPoint(p: Point, step = GRID): Point {
   return { x: snap(p.x, step), y: snap(p.y, step) };
 }
 
+/** Inclusive bounds, so a click exactly on the border still hits. */
+export function containsPoint(r: Rect, p: Point): boolean {
+  return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
+}
+
 /**
  * Normalised rectangle spanned by two corner points, independent of drag
  * direction. With `square` the shorter side grows to match the longer one.

@@ -1,4 +1,4 @@
-import type { Rect } from "./geometry";
+import { containsPoint, type Point, type Rect } from "./geometry";
 
 export interface RectShape extends Rect {
   readonly id: string;
@@ -19,8 +19,24 @@ export class Diagram {
     return this.shapes;
   }
 
+  get(id: string): Shape | undefined {
+    return this.shapes.find((s) => s.id === id);
+  }
+
+  /** Topmost shape under the point, i.e. the last one drawn. */
+  shapeAt(p: Point): Shape | undefined {
+    return this.shapes.findLast((s) => containsPoint(s, p));
+  }
+
   add(shape: Shape): void {
     this.shapes = [...this.shapes, shape];
+    this.emit();
+  }
+
+  moveTo(id: string, x: number, y: number): void {
+    const shape = this.get(id);
+    if (!shape || (shape.x === x && shape.y === y)) return;
+    this.shapes = this.shapes.map((s) => (s.id === id ? { ...s, x, y } : s));
     this.emit();
   }
 

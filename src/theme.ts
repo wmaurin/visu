@@ -14,6 +14,11 @@ export const colours = {
   paper: "#FFFFFF",
 } as const;
 
+/** Editor only colours. Never part of the diagram itself. */
+export const ui = {
+  selection: "#0369A1",
+} as const;
+
 export const font = {
   sans: '"Segoe UI", Arial, sans-serif',
   mono: 'Consolas, "Courier New", monospace',

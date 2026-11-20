@@ -24,18 +24,21 @@ export function setAttrs(el: Element, attrs: Attrs): void {
   }
 }
 
-/** Icon definition: a list of primitive shapes drawn in a 20 × 20 box. */
+/**
+ * Editor UI icon: a list of primitive shapes drawn in a 24 × 24 box,
+ * following the Lucide icon conventions (https://lucide.dev, ISC licence).
+ * Diagram node icons are a separate set on a 20 × 20 grid.
+ */
 export type IconDef = ReadonlyArray<readonly [keyof SVGElementTagNameMap, Attrs]>;
 
-/** Renders an icon in the same stroke style as the diagram icon library. */
 export function renderIcon(icon: IconDef): SVGSVGElement {
   return svgEl(
     "svg",
     {
-      viewBox: "0 0 20 20",
+      viewBox: "0 0 24 24",
       fill: "none",
       stroke: "currentColor",
-      "stroke-width": 1.5,
+      "stroke-width": 1.75,
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
       "aria-hidden": "true",

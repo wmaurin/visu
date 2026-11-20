@@ -23,7 +23,8 @@ export class RectTool implements Tool {
   readonly label = "Rectangle";
   readonly shortcut = "r";
   readonly cursor = "crosshair";
-  readonly icon: IconDef = [["rect", { x: 3, y: 5, width: 14, height: 10, rx: 1.5 }]];
+  // Lucide "square"
+  readonly icon: IconDef = [["rect", { x: 3, y: 3, width: 18, height: 18, rx: 2 }]];
 
   private draft: Draft | null = null;
 

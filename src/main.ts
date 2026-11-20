@@ -4,6 +4,7 @@ import { Diagram } from "./model";
 import { renderDiagram } from "./renderer";
 import { Toolbar } from "./toolbar";
 import { RectTool } from "./tools/rect-tool";
+import { SelectTool } from "./tools/select-tool";
 import type { Tool, ToolContext } from "./tools/tool";
 
 function requireElement(id: string): HTMLElement {
@@ -16,7 +17,7 @@ const diagram = new Diagram();
 const canvas = new Canvas(requireElement("canvas"));
 const ctx: ToolContext = { canvas, diagram };
 
-const tools: readonly Tool[] = [new RectTool(ctx)];
+const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx)];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
 
 let active: Tool = tools[0]!;
