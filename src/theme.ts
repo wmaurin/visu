@@ -43,6 +43,13 @@ export function cssFont(fontSize: number): string {
   return `${textStyle.fontWeight} ${fontSize}px ${font.sans}`;
 }
 
+/** Connection line, the style guide's `link` class. */
+export const linkStyle = {
+  fill: "none",
+  stroke: colours.muted,
+  "stroke-width": 1.25,
+} as const;
+
 export const nodeStyle = {
   fill: colours.paper,
   stroke: colours.borderStrong,

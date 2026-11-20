@@ -4,6 +4,7 @@ import { Diagram } from "./model";
 import { renderDiagram } from "./renderer";
 import { TextEditor } from "./text-editor";
 import { Toolbar } from "./toolbar";
+import { ArrowTool } from "./tools/arrow-tool";
 import { RectTool } from "./tools/rect-tool";
 import { SelectTool } from "./tools/select-tool";
 import type { Tool, ToolContext } from "./tools/tool";
@@ -26,7 +27,7 @@ const canvas = new Canvas(requireElement("canvas"));
 const textEditor = new TextEditor(canvas, diagram, render);
 const ctx: ToolContext = { canvas, diagram, textEditor };
 
-const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx)];
+const tools: readonly Tool[] = [new SelectTool(ctx), new RectTool(ctx), new ArrowTool(ctx)];
 const toolbar = new Toolbar(requireElement("toolbar"), tools, activate);
 
 let active: Tool = tools[0]!;

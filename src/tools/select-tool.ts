@@ -12,6 +12,8 @@ const SELECTION_PADDING = 3;
 const HANDLE_SIZE = 8;
 /** Extra grab margin around a handle, so it is easy to hit. */
 const HANDLE_HIT_SLOP = 3;
+/** How close to a line a click must be to select it. */
+const LINE_HIT_TOLERANCE = 5;
 
 type HandleId = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
 
@@ -105,6 +107,11 @@ export class SelectTool implements Tool {
     fill: colours.muted,
   });
   private readonly selectionGroup = svgEl("g", {}, [this.outline, ...this.handleEls.values()]);
+  private readonly lineHighlight = svgEl("line", {
+    stroke: ui.selection,
+    "stroke-width": 2,
+    "stroke-linecap": "round",
+  });
   private readonly formatBar: FormatBar;
 
   constructor(private readonly ctx: ToolContext) {
@@ -134,11 +141,15 @@ export class SelectTool implements Tool {
       return;
     }
 
+    // Shapes are drawn above lines, so they win the hit test.
     const hit = this.ctx.diagram.shapeAt(raw);
-    this.select(hit?.id ?? null);
     if (hit) {
+      this.select(hit.id);
       this.drag = { id: hit.id, handle: null, origin: boundsOf(hit), start: point };
+      return;
     }
+
+    this.select(this.ctx.diagram.lineAt(raw, LINE_HIT_TOLERANCE)?.id ?? null);
   }
 
   pointerMove({ point, raw }: CanvasPointer): void {
@@ -225,7 +236,8 @@ export class SelectTool implements Tool {
 
   private deleteSelected(): boolean {
     if (!this.selectedId) return false;
-    // Removing the shape also clears the selection on the next render.
+    // Works for shapes and lines. Lines attached to a removed shape go too.
+    // The selection clears itself on the next render.
     this.ctx.diagram.remove(this.selectedId);
     return true;
   }
@@ -234,7 +246,8 @@ export class SelectTool implements Tool {
     const selected = this.selectedShape();
     const handle = selected ? handleAt(selected, p) : null;
     if (handle) return handle.cursor;
-    return this.ctx.diagram.shapeAt(p) ? "move" : this.cursor;
+    if (this.ctx.diagram.shapeAt(p)) return "move";
+    return this.ctx.diagram.lineAt(p, LINE_HIT_TOLERANCE) ? "pointer" : this.cursor;
   }
 
   private revertDrag(): void {
@@ -243,6 +256,21 @@ export class SelectTool implements Tool {
     this.drag = null;
     this.ctx.diagram.setBounds(id, origin);
     this.renderSelection();
+  }
+
+  /** Highlights the selected line, or clears a selection that no longer exists. */
+  private renderLineSelection(): void {
+    const line = this.selectedId ? this.ctx.diagram.getLine(this.selectedId) : undefined;
+    const ends = line ? this.ctx.diagram.resolveLine(line) : null;
+    if (!ends) {
+      this.selectedId = null;
+      this.lineHighlight.remove();
+      return;
+    }
+
+    const [a, b] = ends;
+    setAttrs(this.lineHighlight, { x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+    if (!this.lineHighlight.isConnected) this.ctx.canvas.overlayLayer.append(this.lineHighlight);
   }
 
   private selectedShape() {
@@ -257,12 +285,13 @@ export class SelectTool implements Tool {
   private renderSelection(): void {
     const shape = this.selectedShape();
     if (!shape) {
-      this.selectedId = null;
       this.selectionGroup.remove();
       this.readout.remove();
       this.formatBar.hide();
+      this.renderLineSelection();
       return;
     }
+    this.lineHighlight.remove();
 
     // The bar would only get in the way while dragging.
     if (this.drag) this.formatBar.hide();

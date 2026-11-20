@@ -1,7 +1,7 @@
-import type { Diagram, HAlign, RectShape, Shape } from "./model";
+import type { Diagram, HAlign, LineShape, RectShape, Shape } from "./model";
 import { svgEl } from "./svg";
 import { wrapText } from "./text-layout";
-import { font, lineHeightFor, nodeStyle, textStyle } from "./theme";
+import { font, lineHeightFor, linkStyle, nodeStyle, textStyle } from "./theme";
 
 const TEXT_ANCHOR: Record<HAlign, string> = {
   left: "start",
@@ -69,8 +69,16 @@ function renderShape(shape: Shape, hideText: boolean): SVGElement {
   }
 }
 
+function renderLine(diagram: Diagram, line: LineShape): SVGElement | null {
+  const ends = diagram.resolveLine(line);
+  if (!ends) return null;
+  const [a, b] = ends;
+  return svgEl("line", { "data-id": line.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y, ...linkStyle });
+}
+
 /**
  * Full redraw of the shape layer. Cheap enough until diagrams get large.
+ * Lines come first so shapes cover their ends, as the style guide asks.
  * The text of the shape being edited is hidden, as the editor shows it.
  */
 export function renderDiagram(
@@ -78,5 +86,7 @@ export function renderDiagram(
   layer: SVGGElement,
   editingId: string | null = null,
 ): void {
-  layer.replaceChildren(...diagram.all().map((s) => renderShape(s, s.id === editingId)));
+  const lines = diagram.allLines().flatMap((l) => renderLine(diagram, l) ?? []);
+  const shapes = diagram.all().map((s) => renderShape(s, s.id === editingId));
+  layer.replaceChildren(...lines, ...shapes);
 }
