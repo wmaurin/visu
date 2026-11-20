@@ -8,7 +8,7 @@ import type { Cap, LineShape, Routing } from "../model/types";
 import { fractionAlong } from "../layout/path";
 import { anchorHints, HANDLE_HIT_SLOP, highlight, roundHandle, ROUND_HANDLE_RADIUS } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
-import { choices, FloatingBar, type Choice } from "../ui/floating-bar";
+import { dropdown, FloatingBar, type Choice } from "../ui/floating-bar";
 import { within, type Handler } from "./handler";
 import { labelField } from "./label";
 
@@ -22,18 +22,18 @@ const DOTS: IconDef = [
 ];
 
 const START_CAP: ReadonlyArray<Choice<Cap>> = [
-  { value: "none", label: "Start: line", icon: LINE },
-  { value: "arrow", label: "Start: arrow", icon: [["path", { d: "M4 12h16M9 7l-5 5 5 5" }]] },
-];
-
-const ROUTING: ReadonlyArray<Choice<Routing>> = [
-  { value: "straight", label: "Straight line", icon: [["path", { d: "M6 18L18 6" }], ...DOTS] },
-  { value: "orthogonal", label: "Orthogonal line", icon: [["path", { d: "M6.5 19H12V5h5.5" }], ...DOTS] },
+  { value: "none", label: "Line", icon: LINE },
+  { value: "arrow", label: "Arrow", icon: [["path", { d: "M4 12h16M9 7l-5 5 5 5" }]] },
 ];
 
 const END_CAP: ReadonlyArray<Choice<Cap>> = [
-  { value: "none", label: "End: line", icon: LINE },
-  { value: "arrow", label: "End: arrow", icon: [["path", { d: "M4 12h16M15 7l5 5-5 5" }]] },
+  { value: "none", label: "Line", icon: LINE },
+  { value: "arrow", label: "Arrow", icon: [["path", { d: "M4 12h16M15 7l5 5-5 5" }]] },
+];
+
+const ROUTING: ReadonlyArray<Choice<Routing>> = [
+  { value: "straight", label: "Straight", icon: [["path", { d: "M6 18L18 6" }], ...DOTS] },
+  { value: "orthogonal", label: "Orthogonal", icon: [["path", { d: "M6.5 19H12V5h5.5" }], ...DOTS] },
 ];
 
 /**
@@ -48,9 +48,9 @@ export function lineHandler(ctx: AppContext): Handler<LineShape> {
   return {
     cursor: "pointer",
     bar: new FloatingBar<LineShape>(canvas, "Line format", [
-      choices(START_CAP, (l) => l.startCap, (l, startCap) => set(l, { startCap })),
-      choices(ROUTING, (l) => l.routing, (l, routing) => set(l, { routing })),
-      choices(END_CAP, (l) => l.endCap, (l, endCap) => set(l, { endCap })),
+      dropdown("Line start", START_CAP, (l) => l.startCap, (l, startCap) => set(l, { startCap })),
+      dropdown("Line end", END_CAP, (l) => l.endCap, (l, endCap) => set(l, { endCap })),
+      dropdown("Routing", ROUTING, (l) => l.routing, (l, routing) => set(l, { routing })),
     ]),
 
     bounds: (l) => {

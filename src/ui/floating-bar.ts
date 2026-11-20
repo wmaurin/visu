@@ -11,6 +11,8 @@ const EDGE = 8;
 export interface BarControl<T> {
   readonly el: HTMLElement;
   sync(item: T): void;
+  /** Closes any popup the control has open. Called when the bar hides. */
+  close?(): void;
 }
 
 /** Builds a control. `current` returns the item the bar is showing. */
@@ -23,8 +25,8 @@ export interface Choice<V> {
 }
 
 /**
- * Floating toolbar above an item. Declared as groups of controls, so a new
- * bar is configuration only. Groups are separated by dividers.
+ * Floating toolbar above an item. Declared as a list of controls, so a new
+ * bar is configuration only. Controls are separated by dividers.
  */
 export class FloatingBar<T> {
   private readonly el = document.createElement("div");
@@ -34,20 +36,18 @@ export class FloatingBar<T> {
   constructor(
     private readonly canvas: Canvas,
     label: string,
-    groups: ReadonlyArray<ReadonlyArray<Control<T>>>,
+    controls: ReadonlyArray<Control<T>>,
   ) {
     this.el.className = "floating-bar";
     this.el.setAttribute("role", "toolbar");
     this.el.setAttribute("aria-label", label);
     this.el.hidden = true;
 
-    groups.forEach((group, i) => {
+    controls.forEach((make, i) => {
       if (i > 0) this.el.append(divider());
-      for (const make of group) {
-        const control = make(() => this.item);
-        this.controls.push(control);
-        this.el.append(control.el);
-      }
+      const control = make(() => this.item);
+      this.controls.push(control);
+      this.el.append(control.el);
     });
     canvas.host.append(this.el);
   }
@@ -62,6 +62,7 @@ export class FloatingBar<T> {
   hide(): void {
     this.item = null;
     this.el.hidden = true;
+    for (const control of this.controls) control.close?.();
   }
 
   /** Centred above `box`, or below it when there is no room above. */
@@ -79,30 +80,99 @@ export class FloatingBar<T> {
   }
 }
 
-/** A group of toggle buttons, one per option, for one property of the item. */
-export function choices<T, V>(
+// Lucide "chevron-down"
+const CHEVRON: IconDef = [["path", { d: "m6 9 6 6 6-6" }]];
+
+/**
+ * Dropdown for one property of the item. The trigger shows the icon of the
+ * current value, the menu lists all options. Neither takes focus on click,
+ * so an open inline editor stays open.
+ */
+export function dropdown<T, V>(
+  label: string,
   options: ReadonlyArray<Choice<V>>,
   read: (item: T) => V,
   write: (item: T, value: V) => void,
-): Control<T>[] {
-  return options.map((option) => (current) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "tool";
-    button.title = option.label;
-    button.setAttribute("aria-label", option.label);
-    button.append(renderIcon(option.icon));
-    // Never takes focus, so an open inline editor stays open.
-    button.addEventListener("mousedown", (event) => event.preventDefault());
-    button.addEventListener("click", () => {
-      const item = current();
-      if (item) write(item, option.value);
+): Control<T> {
+  return (current) => {
+    const trigger = button("tool dropdown-trigger");
+    trigger.setAttribute("aria-haspopup", "menu");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", label);
+    const currentIcon = document.createElement("span");
+    currentIcon.className = "dropdown-value";
+    trigger.append(currentIcon, renderIcon(CHEVRON));
+
+    const menu = document.createElement("div");
+    menu.className = "dropdown-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", label);
+    menu.hidden = true;
+
+    const items = options.map((option) => {
+      const item = button("dropdown-item");
+      item.setAttribute("role", "menuitemradio");
+      const text = document.createElement("span");
+      text.textContent = option.label;
+      item.append(renderIcon(option.icon), text);
+      item.addEventListener("click", () => {
+        const target = current();
+        if (target) write(target, option.value);
+        close();
+      });
+      menu.append(item);
+      return { option, item };
     });
-    return {
-      el: button,
-      sync: (item) => button.setAttribute("aria-pressed", String(read(item) === option.value)),
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "dropdown";
+    wrapper.append(trigger, menu);
+
+    const onOutside = (event: PointerEvent) => {
+      if (!wrapper.contains(event.target as Node)) close();
     };
-  });
+    function open(): void {
+      menu.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      document.addEventListener("pointerdown", onOutside, true);
+    }
+    function close(): void {
+      menu.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+      document.removeEventListener("pointerdown", onOutside, true);
+    }
+
+    trigger.addEventListener("click", () => (menu.hidden ? open() : close()));
+    wrapper.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || menu.hidden) return;
+      // Closes the menu only, without clearing the selection.
+      event.stopPropagation();
+      close();
+    });
+
+    return {
+      el: wrapper,
+      close,
+      sync: (item) => {
+        const value = read(item);
+        const selected = options.find((o) => o.value === value);
+        currentIcon.replaceChildren(...(selected ? [renderIcon(selected.icon)] : []));
+        trigger.title = selected ? `${label}: ${selected.label}` : label;
+        for (const { option, item: el } of items) {
+          el.setAttribute("aria-checked", String(option.value === value));
+        }
+      },
+    };
+  };
+}
+
+/** A button that never takes focus on click. */
+function button(className: string): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = className;
+  el.addEventListener("mousedown", (event) => event.preventDefault());
+  return el;
 }
 
 export interface NumberFieldSpec<T> {
