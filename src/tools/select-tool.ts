@@ -1,9 +1,21 @@
 import type { AppContext } from "../context";
-import type { IconDef } from "../core/svg";
-import { pick } from "../model/queries";
-import type { AnyItem, Collection, Ref } from "../model/types";
-import type { Handler } from "../selection/handler";
+import { inflate, rectFromPoints } from "../core/geometry";
+import { svgEl, type IconDef } from "../core/svg";
+import { settle } from "../model/hierarchy";
+import { descendants, itemsInside, pick, route } from "../model/queries";
+import {
+  includesRef,
+  sameRef,
+  type AnyItem,
+  type Collection,
+  type LineShape,
+  type Ref,
+  type Selection,
+} from "../model/types";
+import { highlight, outline, SELECTION_PADDING } from "../render/overlay";
+import { ui } from "../render/theme";
 import { frameHandler } from "../selection/frame";
+import type { Handler } from "../selection/handler";
 import { labelHandler } from "../selection/label";
 import { lineHandler } from "../selection/line";
 import { shapeHandler } from "../selection/shape";
@@ -11,12 +23,27 @@ import { textHandler } from "../selection/text";
 import type { CanvasPointer } from "../ui/canvas";
 import { GestureTool, type Gesture } from "./tool";
 
+interface Resolved {
+  readonly ref: Ref;
+  readonly handler: Handler<AnyItem>;
+  readonly item: AnyItem;
+}
+
+/** Kinds that move together when several items are dragged. Lines follow their anchors. */
+type Movable = "shapes" | "texts" | "frames";
+
 /**
  * Selects, drags and edits items. Generic over item kinds: everything
  * kind specific (handles, drags, bars, double-click) lives in the handlers.
  *
- * Hit order: handles of the selected item, then texts, labels, shapes,
- * lines and the borders of export frames.
+ * - Click selects one item, Ctrl/Cmd+click adds or removes one.
+ * - Dragging on empty canvas draws a marquee and selects what lies fully
+ *   inside, with Ctrl/Cmd adding to the selection.
+ * - Dragging a selected item moves all selected items.
+ * - A single selected item shows its handles and format bar.
+ *
+ * Hit order: handles of a single selected item, then texts, labels,
+ * shapes, lines and the borders of export frames.
  */
 export class SelectTool extends GestureTool {
   readonly id = "select";
@@ -55,23 +82,39 @@ export class SelectTool extends GestureTool {
   deactivate(): void {
     super.deactivate();
     this.ctx.editor.close();
-    this.ctx.selection.set(null);
+    this.ctx.selection.set([]);
   }
 
   protected begin(p: CanvasPointer): Gesture | null {
-    const selected = this.selected();
-    const handle = selected?.handler.handleAt?.(selected.item, p.raw);
+    const { selection, diagram } = this.ctx;
+    const additive = p.event.ctrlKey || p.event.metaKey;
+
+    const single = this.single();
+    const handle = !additive && single?.handler.handleAt?.(single.item, p.raw);
     if (handle) return handle.begin(p);
 
-    const ref = pick(this.ctx.diagram.doc, p.raw);
-    this.ctx.selection.set(ref);
+    const ref = pick(diagram.doc, p.raw);
+    if (!ref) {
+      if (!additive) selection.set([]);
+      return this.marquee(p, additive ? selection.get() : []);
+    }
+    if (additive) {
+      const current = selection.get();
+      selection.set(includesRef(current, ref) ? current.filter((r) => !sameRef(r, ref)) : [...current, ref]);
+      return null;
+    }
+
+    // A press on an unselected item selects it alone. On a selected one the selection stays.
+    if (!includesRef(selection.get(), ref)) selection.set([ref]);
+    const selected = selection.get();
+    if (selected.length > 1) return this.moveTogether(p, selected);
     const target = this.resolve(ref);
     return target?.handler.drag?.(target.item, p) ?? null;
   }
 
   protected hover({ raw }: CanvasPointer): void {
-    const selected = this.selected();
-    const handle = selected?.handler.handleAt?.(selected.item, raw);
+    const single = this.single();
+    const handle = single?.handler.handleAt?.(single.item, raw);
     const ref = pick(this.ctx.diagram.doc, raw);
     this.ctx.canvas.setCursor(handle?.cursor ?? (ref ? this.handlers[ref.kind].cursor : this.cursor));
   }
@@ -82,35 +125,119 @@ export class SelectTool extends GestureTool {
 
   doubleClick(p: CanvasPointer): void {
     const ref = pick(this.ctx.diagram.doc, p.raw);
-    this.ctx.selection.set(ref);
+    if (!ref) return;
+    this.ctx.selection.set([ref]);
     const target = this.resolve(ref);
     target?.handler.doubleClick?.(target.item, p);
   }
 
-  private selected() {
-    return this.resolve(this.ctx.selection.get());
+  /**
+   * Draws a selection rectangle from the press point. Selects what lies
+   * fully inside, added to `base`. Works on raw positions, as selecting
+   * needs no snapping.
+   */
+  private marquee(start: CanvasPointer, base: Selection): Gesture {
+    const { canvas, diagram, selection } = this.ctx;
+    const overlay = canvas.overlay();
+    return {
+      move: ({ raw }) => {
+        const area = rectFromPoints(start.raw, raw);
+        overlay.replaceChildren(
+          svgEl("rect", {
+            ...area,
+            fill: ui.selection,
+            "fill-opacity": 0.06,
+            stroke: ui.selection,
+            "stroke-width": 1,
+            "vector-effect": "non-scaling-stroke",
+          }),
+        );
+        const inside = itemsInside(diagram.doc, area).filter((ref) => !includesRef(base, ref));
+        selection.set([...base, ...inside]);
+      },
+      dispose: () => overlay.remove(),
+    };
   }
 
-  private resolve(ref: Ref | null): { handler: Handler<AnyItem>; item: AnyItem } | null {
-    const item = ref && this.ctx.diagram.get(ref.kind, ref.id);
-    return ref && item ? { handler: this.handlers[ref.kind], item } : null;
-  }
-
-  /** Rebuilds the selection feedback. The bar hides while dragging. */
-  private render(): void {
-    const selected = this.selected();
-    for (const handler of Object.values(this.handlers)) {
-      if (handler !== selected?.handler) handler.bar?.hide();
+  /**
+   * Moves all selected rectangles, texts and frames by the same snapped
+   * distance, rectangles with everything inside them. Each item counts
+   * once, also when it is selected and inside a selected container.
+   */
+  private moveTogether(start: CanvasPointer, selected: Selection): Gesture {
+    const { diagram } = this.ctx;
+    const moving = new Map<string, { kind: Movable; x: number; y: number }>();
+    const take = (ref: Ref) => {
+      if (ref.kind !== "shapes" && ref.kind !== "texts" && ref.kind !== "frames") return;
+      const item = diagram.get(ref.kind, ref.id);
+      if (item) moving.set(ref.id, { kind: ref.kind, x: item.x, y: item.y });
+    };
+    for (const ref of selected) {
+      take(ref);
+      if (ref.kind === "shapes") descendants(diagram.doc, ref.id).forEach(take);
     }
-    if (!selected) {
-      this.overlay.replaceChildren();
+
+    return {
+      move: ({ point }) => {
+        const dx = point.x - start.point.x;
+        const dy = point.y - start.point.y;
+        diagram.batch(() => {
+          for (const [id, { kind, x, y }] of moving) diagram.update(kind, id, { x: x + dx, y: y + dy });
+        });
+      },
+      end: () => {
+        // Moved items may now sit in, or around, other rectangles.
+        diagram.batch(() => {
+          for (const { kind, id } of selected) {
+            if (kind === "shapes" || kind === "texts") settle(diagram, { kind, id });
+          }
+        });
+      },
+    };
+  }
+
+  /** The selected item when exactly one is selected. */
+  private single(): Resolved | null {
+    const selected = this.ctx.selection.get();
+    return selected.length === 1 ? this.resolve(selected[0]!) : null;
+  }
+
+  private resolve(ref: Ref): Resolved | null {
+    const item = this.ctx.diagram.get(ref.kind, ref.id);
+    return item ? { ref, handler: this.handlers[ref.kind], item } : null;
+  }
+
+  /**
+   * Rebuilds the selection feedback. One item shows its handles and format
+   * bar, the bar hidden while dragging. Several items show an outline each.
+   */
+  private render(): void {
+    const resolved = this.ctx.selection.get().flatMap((ref) => this.resolve(ref) ?? []);
+    const single = resolved.length === 1 ? resolved[0]! : null;
+
+    for (const handler of Object.values(this.handlers)) {
+      if (handler !== single?.handler) handler.bar?.hide();
+    }
+
+    if (single) {
+      const { handler, item } = single;
+      this.overlay.replaceChildren(...handler.overlay(item));
+      const box = handler.bounds(item);
+      if (box && !this.busy) handler.bar?.show(item, box);
+      else handler.bar?.hide();
       return;
     }
 
-    const { handler, item } = selected;
-    this.overlay.replaceChildren(...handler.overlay(item));
+    this.overlay.replaceChildren(...resolved.flatMap((r) => this.outlineOf(r)));
+  }
+
+  /** Light selection mark for one of several selected items. */
+  private outlineOf({ ref, handler, item }: Resolved): SVGElement[] {
+    if (ref.kind === "lines") {
+      const points = route(this.ctx.diagram.doc, item as LineShape);
+      return points ? [highlight(points)] : [];
+    }
     const box = handler.bounds(item);
-    if (box && !this.busy) handler.bar?.show(item, box);
-    else handler.bar?.hide();
+    return box ? [outline(inflate(box, SELECTION_PADDING), 4)] : [];
   }
 }

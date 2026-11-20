@@ -4,7 +4,7 @@ import type { AppContext } from "./context";
 import { GRID_SIZES, setGrid } from "./core/geometry";
 import { Observable } from "./core/observable";
 import { Diagram } from "./model/diagram";
-import { sameRef, type Ref } from "./model/types";
+import { sameSelection, type Selection } from "./model/types";
 import { renderDiagram, renderFrames } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
 import { frameTool, rectTool } from "./tools/box-tool";
@@ -45,7 +45,7 @@ const diagram = new Diagram();
 const ctx: AppContext = {
   canvas,
   diagram,
-  selection: new Observable<Ref | null>(null, sameRef),
+  selection: new Observable<Selection>([], sameSelection),
   editor: new InlineEditor(canvas, diagram, render),
   settings: createSettings(),
   projectName: new Observable("Untitled"),

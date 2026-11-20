@@ -140,3 +140,14 @@ export interface Ref {
 export function sameRef(a: Ref | null, b: Ref | null): boolean {
   return a === b || (a !== null && b !== null && a.kind === b.kind && a.id === b.id);
 }
+
+/** The selected items, in the order they were selected. Empty when nothing is. */
+export type Selection = readonly Ref[];
+
+export function sameSelection(a: Selection, b: Selection): boolean {
+  return a.length === b.length && a.every((ref, i) => sameRef(ref, b[i]!));
+}
+
+export function includesRef(selection: Selection, ref: Ref): boolean {
+  return selection.some((r) => sameRef(r, ref));
+}

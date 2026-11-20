@@ -119,15 +119,23 @@ export function childBounds(item: Shape | FreeText): Rect {
 /**
  * The innermost rectangle that fully contains `bounds` and is larger,
  * skipping the item itself and its descendants so no cycle can form.
+ *
+ * The current parent wins every tie: an item stays where it is while its
+ * parent still contains it and no smaller rectangle does. Without this,
+ * an item covered by two equal rectangles, e.g. a pasted copy shifted
+ * over its original, would jump to whichever comes first.
  */
-export function parentFor(doc: Doc, ref: Ref, bounds: Rect): string | null {
+export function parentFor(doc: Doc, ref: Ref, bounds: Rect, current: string | null = null): string | null {
   const excluded = new Set(ref.kind === "shapes" ? [ref.id, ...descendants(doc, ref.id).map((d) => d.id)] : []);
   const area = (r: Rect) => r.width * r.height;
+  const fits = (s: Shape) => !excluded.has(s.id) && area(s) > area(bounds) && containsRect(s, bounds);
+
   let best: Shape | null = null;
   for (const s of doc.shapes) {
-    if (excluded.has(s.id) || area(s) <= area(bounds) || !containsRect(s, bounds)) continue;
-    if (!best || area(s) < area(best)) best = s;
+    if (fits(s) && (!best || area(s) < area(best))) best = s;
   }
+  const parent = current === null ? undefined : byId(doc.shapes, current);
+  if (parent && best && fits(parent) && area(parent) <= area(best)) return parent.id;
   return best?.id ?? null;
 }
 
@@ -138,6 +146,28 @@ function containsRect(outer: Rect, inner: Rect): boolean {
     inner.x + inner.width <= outer.x + outer.width &&
     inner.y + inner.height <= outer.y + outer.height
   );
+}
+
+/**
+ * Everything that lies fully inside `area`, for selecting with a marquee.
+ * Fully inside, not touching, so a marquee drawn within a container does
+ * not pick the container as well.
+ */
+export function itemsInside(doc: Doc, area: Rect): Ref[] {
+  const within = (box: Rect | null) => box !== null && containsRect(area, box);
+  const refs = <K extends Ref["kind"]>(kind: K, items: ReadonlyArray<{ id: string }>, test: (i: never) => boolean) =>
+    items.filter((item) => test(item as never)).map((item) => ({ kind, id: item.id }));
+
+  return [
+    ...refs("shapes", doc.shapes, (s: Shape) => within(s)),
+    ...refs("lines", doc.lines, (l: LineShape) => {
+      const points = route(doc, l);
+      return points !== null && points.every((p) => containsPoint(area, p));
+    }),
+    ...refs("labels", doc.labels, (l: LineLabel) => within(labelBox(doc, l))),
+    ...refs("texts", doc.texts, (t: FreeText) => within(textBox(t))),
+    ...refs("frames", doc.frames, (f: ExportFrame) => within(f)),
+  ];
 }
 
 /** The polyline a line is drawn along, or null if one of its shapes is gone. */

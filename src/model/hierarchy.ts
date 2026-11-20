@@ -35,6 +35,6 @@ export function settle(diagram: Diagram, ref: Ref & { kind: ChildKind }): void {
 function reparent(diagram: Diagram, ref: Ref & { kind: ChildKind }): void {
   const item = diagram.get(ref.kind, ref.id);
   if (!item) return;
-  const parentId = parentFor(diagram.doc, ref, childBounds(item));
+  const parentId = parentFor(diagram.doc, ref, childBounds(item), item.parentId);
   if (parentId !== item.parentId) diagram.update(ref.kind, ref.id, { parentId });
 }

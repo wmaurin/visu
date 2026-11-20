@@ -53,7 +53,7 @@ export class TextTool implements Tool {
       });
       settle(diagram, { kind: "texts", id });
     }
-    selection.set({ kind: "texts", id });
+    selection.set([{ kind: "texts", id }]);
     editor.open({ kind: "texts", id }, textField(this.ctx, id));
   }
 

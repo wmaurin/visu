@@ -3,15 +3,10 @@ import { download, fileName, pickFile, readTextFile } from "./core/files";
 import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
-import { newId } from "./model/diagram";
-import { settle } from "./model/hierarchy";
-import type { FreeText, Shape } from "./model/types";
+import { copyItems, pasteClip, type Clip } from "./model/clipboard";
 
 /** A command reports whether it did anything, so the key press is consumed. */
 export type Command = () => boolean;
-
-/** Items that can be copied: free standing ones, positioned by x and y. */
-type Copied = { readonly kind: "shapes"; readonly item: Shape } | { readonly kind: "texts"; readonly item: FreeText };
 
 /**
  * Keyboard commands on the selection (Command pattern). The clipboard is
@@ -19,25 +14,23 @@ type Copied = { readonly kind: "shapes"; readonly item: Shape } | { readonly kin
  * read or parsed.
  */
 export function createCommands({ diagram, selection, editor, projectName }: AppContext) {
-  /** Snapshot taken on copy. Later edits to the original do not affect it. */
-  let clipboard: Copied | null = null;
+  let clipboard: Clip | null = null;
   /** Pastes since the last copy. Each one lands one grid step further. */
   let pastes = 0;
 
+  /** Removes every selected item. Items already gone with a removed container are skipped. */
   const deleteSelection: Command = () => {
-    const ref = selection.get();
-    if (!ref) return false;
-    diagram.remove(ref);
-    selection.set(null);
+    const refs = selection.get();
+    if (refs.length === 0) return false;
+    diagram.batch(() => refs.forEach((ref) => diagram.remove(ref)));
+    selection.set([]);
     return true;
   };
 
   const copy: Command = () => {
-    const ref = selection.get();
-    if (ref?.kind !== "shapes" && ref?.kind !== "texts") return false;
-    const item = diagram.get(ref.kind, ref.id);
-    if (!item) return false;
-    clipboard = { kind: ref.kind, item } as Copied;
+    const clip = copyItems(diagram.doc, selection.get());
+    if (!clip) return false;
+    clipboard = clip;
     pastes = 0;
     return true;
   };
@@ -45,21 +38,13 @@ export function createCommands({ diagram, selection, editor, projectName }: AppC
   const paste: Command = () => {
     if (!clipboard) return false;
     pastes += 1;
-    const offset = pastes * grid();
-    const { kind, item } = clipboard;
-    const id = newId();
-    const moved = { ...item, id, x: item.x + offset, y: item.y + offset };
-    if (kind === "shapes") diagram.add(kind, moved as Shape);
-    else diagram.add(kind, moved as FreeText);
-    // The copy finds its own place, it need not sit where the original did.
-    settle(diagram, { kind, id });
-    selection.set({ kind, id });
+    selection.set(pasteClip(diagram, clipboard, pastes * grid()));
     return true;
   };
 
   const clearSelection: Command = () => {
-    if (!selection.get()) return false;
-    selection.set(null);
+    if (selection.get().length === 0) return false;
+    selection.set([]);
     return true;
   };
 
@@ -83,7 +68,7 @@ export function createCommands({ diagram, selection, editor, projectName }: AppC
         // Nothing is saved automatically yet, so replacing needs consent.
         if (hasContent && !window.confirm("Replace the current diagram with the imported project?")) return;
         editor.close();
-        selection.set(null);
+        selection.set([]);
         diagram.restore(project.doc);
         projectName.set(project.name);
         toast(`Imported ${file.name}.`);

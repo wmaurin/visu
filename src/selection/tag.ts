@@ -87,7 +87,7 @@ export function tagField(ctx: AppContext, kind: TagKind, id: string, anchor: () 
         return;
       }
       diagram.remove({ kind, id });
-      ctx.selection.set(null);
+      ctx.selection.set([]);
     },
   };
 }

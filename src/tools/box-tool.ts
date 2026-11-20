@@ -68,7 +68,7 @@ export class BoxTool<C extends BoxKind> extends GestureTool {
         if (!kept) return false;
         // A new rectangle joins what it was drawn in and adopts what it was drawn around.
         if (kind === "shapes") settle(diagram, { kind: "shapes", id });
-        selection.set({ kind, id });
+        selection.set([{ kind, id }]);
         return true;
       },
       dispose: () => overlay.remove(),
