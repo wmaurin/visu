@@ -14,7 +14,7 @@ import { textStyle } from "../render/theme";
 /**
  * Project file format: the whole document as versioned JSON.
  *
- *   { "format": "visu", "version": 1, "doc": { shapes, lines, labels, texts, frames } }
+ *   { "format": "visu", "version": 1, "name": "…", "doc": { shapes, lines, labels, texts, frames } }
  *
  * Imported files are untrusted. Every field is checked, unknown fields are
  * dropped, and references between items must resolve.
@@ -24,7 +24,8 @@ const FORMAT = "visu";
 const VERSION = 1;
 
 export const PROJECT_FILE = {
-  name: "diagram.visu.json",
+  /** Appended to the project name, e.g. "Projekt_Eins.visu.json". */
+  extension: "visu.json",
   type: "application/json",
   accept: ".json,application/json",
   maxBytes: 5 * 1024 * 1024,
@@ -107,27 +108,34 @@ const doc = obj<Doc>({
   frames: arr(frame, MAX_ITEMS),
 });
 
-const file = obj<{ format: string; version: number; doc: Doc }>({
+/** A project: its name and the diagram. */
+export interface Project {
+  readonly name: string;
+  readonly doc: Doc;
+}
+
+const file = obj<{ format: string; version: number; name: string; doc: Doc }>({
   format: oneOf(FORMAT),
   version: oneOf(VERSION),
+  name: str(200),
   doc,
 });
 
-export function serializeProject(d: Doc): string {
-  return `${JSON.stringify({ format: FORMAT, version: VERSION, doc: d }, null, 2)}\n`;
+export function serializeProject({ name, doc: d }: Project): string {
+  return `${JSON.stringify({ format: FORMAT, version: VERSION, name, doc: d }, null, 2)}\n`;
 }
 
 /** Parses and validates a project file. Throws a readable error when it cannot be used. */
-export function parseProject(text: string): Doc {
+export function parseProject(text: string): Project {
   let input: unknown;
   try {
     input = JSON.parse(text);
   } catch {
     throw new ValidationError("The file is not valid JSON.");
   }
-  const result = file(input, "file").doc;
-  checkReferences(result);
-  return result;
+  const { name, doc: d } = file(input, "file");
+  checkReferences(d);
+  return { name, doc: d };
 }
 
 /** IDs are unique across the document and every reference points at an existing item. */

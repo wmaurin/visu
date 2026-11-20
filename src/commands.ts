@@ -1,5 +1,5 @@
 import type { AppContext } from "./context";
-import { download, pickFile, readTextFile } from "./core/files";
+import { download, fileName, pickFile, readTextFile } from "./core/files";
 import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
@@ -18,7 +18,7 @@ type Copied = { readonly kind: "shapes"; readonly item: Shape } | { readonly kin
  * internal to the app on purpose, so foreign clipboard content is never
  * read or parsed.
  */
-export function createCommands({ diagram, selection, editor }: AppContext) {
+export function createCommands({ diagram, selection, editor, projectName }: AppContext) {
   /** Snapshot taken on copy. Later edits to the original do not affect it. */
   let clipboard: Copied | null = null;
   /** Pastes since the last copy. Each one lands one grid step further. */
@@ -63,9 +63,12 @@ export function createCommands({ diagram, selection, editor }: AppContext) {
     return true;
   };
 
+  /** Saves the project under its name, e.g. "Projekt_Eins.visu.json". */
   const exportProject: Command = () => {
-    download(PROJECT_FILE.name, serializeProject(diagram.doc), PROJECT_FILE.type);
-    toast(`Exported ${PROJECT_FILE.name}.`);
+    const name = projectName.get();
+    const file = fileName(name, PROJECT_FILE.extension);
+    download(file, serializeProject({ name, doc: diagram.doc }), PROJECT_FILE.type);
+    toast(`Exported ${file}.`);
     return true;
   };
 
@@ -75,13 +78,14 @@ export function createCommands({ diagram, selection, editor }: AppContext) {
       const file = await pickFile(PROJECT_FILE.accept);
       if (!file) return;
       try {
-        const doc = parseProject(await readTextFile(file, PROJECT_FILE.maxBytes));
+        const project = parseProject(await readTextFile(file, PROJECT_FILE.maxBytes));
         const hasContent = Object.values(diagram.doc).some((items) => items.length > 0);
         // Nothing is saved automatically yet, so replacing needs consent.
         if (hasContent && !window.confirm("Replace the current diagram with the imported project?")) return;
         editor.close();
         selection.set(null);
-        diagram.restore(doc);
+        diagram.restore(project.doc);
+        projectName.set(project.name);
         toast(`Imported ${file.name}.`);
       } catch (error) {
         toast(error instanceof Error ? error.message : "The file could not be imported.", "error");

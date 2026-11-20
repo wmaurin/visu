@@ -1,6 +1,6 @@
 import type { AppContext } from "../context";
 import { setAttrs } from "../core/svg";
-import { download } from "../core/files";
+import { download, fileName } from "../core/files";
 import { exportSvg } from "../export/svg";
 import { textWidth } from "../layout/text";
 import { FRAME_TITLE_SIZE, frameTitleBox } from "../model/queries";
@@ -73,13 +73,4 @@ function nameField(ctx: AppContext, id: string): FieldSpec {
       if (name !== "") diagram.update("frames", id, { name });
     },
   };
-}
-
-/**
- * File name from a frame name. Drops characters that are not allowed in
- * file names on common systems, falls back to "diagram".
- */
-function fileName(name: string, extension: string): string {
-  const safe = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "").trim();
-  return `${safe || "diagram"}.${extension}`;
 }

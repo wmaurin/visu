@@ -1,6 +1,7 @@
 {
   "format": "visu",
   "version": 1,
+  "name": "kubernetes_cluster_components",
   "doc": {
     "shapes": [
       {

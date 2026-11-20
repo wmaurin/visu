@@ -66,7 +66,37 @@ body {
 .project-bar {
   top: 12px;
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.project-name {
+  /* The width follows the name, set from project-bar.ts. */
+  height: 36px;
+  margin-left: 4px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.project-name:hover {
+  background: var(--hover);
+}
+
+.project-name:focus {
+  background: var(--paper);
+  border-color: var(--focus);
+  outline: none;
+}
+
+.project-name::placeholder {
+  font-weight: 400;
+  color: var(--muted);
 }
 
 /* Zoom: bottom left, right of the settings button. */

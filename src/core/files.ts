@@ -1,3 +1,12 @@
+/**
+ * File name from a user given name. Drops characters that are not allowed
+ * in file names on common systems, falls back to "diagram".
+ */
+export function fileName(name: string, extension: string): string {
+  const safe = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "").trim();
+  return `${safe || "diagram"}.${extension}`;
+}
+
 /** Hands a text file to the browser as a download. */
 export function download(filename: string, text: string, type: string): void {
   const url = URL.createObjectURL(new Blob([text], { type }));

@@ -12,4 +12,6 @@ export interface AppContext {
   readonly selection: Observable<Ref | null>;
   readonly editor: InlineEditor;
   readonly settings: Observable<Settings>;
+  /** Shown in the project bar, saved in the project file and used as its file name. */
+  readonly projectName: Observable<string>;
 }

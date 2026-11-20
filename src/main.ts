@@ -48,6 +48,7 @@ const ctx: AppContext = {
   selection: new Observable<Ref | null>(null, sameRef),
   editor: new InlineEditor(canvas, diagram, render),
   settings: createSettings(),
+  projectName: new Observable("Untitled"),
 };
 
 /** Pushes the settings into the parts that depend on them, then redraws. */
@@ -109,7 +110,7 @@ new SettingsMenu(requireElement("app"), settingsCategories, settingsFileActions(
 let active: Tool = tools[0]!;
 
 const commands = createCommands(ctx);
-projectBar(requireElement("app"), commands);
+projectBar(requireElement("app"), commands, ctx.projectName);
 zoomBar(requireElement("app"), canvas);
 const keymap: Record<string, Command> = {
   escape: () => !!active.cancel?.() || commands.clearSelection(),
