@@ -2,17 +2,18 @@ import type { Diagram } from "./diagram";
 import { newId } from "./diagram";
 import { settle } from "./hierarchy";
 import { descendants } from "./queries";
-import type { Doc, Endpoint, FreeText, LineLabel, LineShape, Ref, Selection, Shape } from "./types";
+import type { Doc, Endpoint, FreeText, LineLabel, LineShape, Overlay, Ref, Selection, Shape } from "./types";
 
 /**
  * A copied part of the diagram: rectangles with everything inside them,
- * free texts, and the lines that run only between copied rectangles,
+ * free texts, overlays, and the lines that run only between copied rectangles,
  * with their labels. A snapshot, so later edits to the originals do not
  * change it.
  */
 export interface Clip {
   readonly shapes: readonly Shape[];
   readonly texts: readonly FreeText[];
+  readonly overlays: readonly Overlay[];
   readonly lines: readonly LineShape[];
   readonly labels: readonly LineLabel[];
 }
@@ -21,14 +22,16 @@ export interface Clip {
 export function copyItems(doc: Doc, selection: Selection): Clip | null {
   const shapeIds = new Set<string>();
   const textIds = new Set<string>();
+  const overlayIds = new Set<string>();
   const take = (ref: Ref) => (ref.kind === "shapes" ? shapeIds : textIds).add(ref.id);
 
   for (const ref of selection) {
+    if (ref.kind === "overlays") overlayIds.add(ref.id);
     if (ref.kind !== "shapes" && ref.kind !== "texts") continue;
     take(ref);
     if (ref.kind === "shapes") descendants(doc, ref.id).forEach(take);
   }
-  if (shapeIds.size === 0 && textIds.size === 0) return null;
+  if (shapeIds.size === 0 && textIds.size === 0 && overlayIds.size === 0) return null;
 
   // A line comes along when it is attached, and only to copied rectangles.
   const copied = (e: Endpoint) => e.kind === "free" || shapeIds.has(e.shapeId);
@@ -40,6 +43,7 @@ export function copyItems(doc: Doc, selection: Selection): Clip | null {
   return {
     shapes: doc.shapes.filter((s) => shapeIds.has(s.id)),
     texts: doc.texts.filter((t) => textIds.has(t.id)),
+    overlays: doc.overlays.filter((o) => overlayIds.has(o.id)),
     lines,
     labels: doc.labels.filter((l) => lineIds.has(l.lineId)),
   };
@@ -57,7 +61,7 @@ export function pasteClip(diagram: Diagram, clip: Clip, offset: number): Ref[] {
     ids.set(id, next);
     return next;
   };
-  [...clip.shapes, ...clip.texts, ...clip.lines, ...clip.labels].forEach((item) => fresh(item.id));
+  [...clip.shapes, ...clip.texts, ...clip.overlays, ...clip.lines, ...clip.labels].forEach((item) => fresh(item.id));
   const id = (old: string) => ids.get(old)!;
   // Parents outside the copy are dropped. settle() finds the new place.
   const parent = (old: string | null) => (old !== null && ids.has(old) ? id(old) : null);
@@ -77,6 +81,10 @@ export function pasteClip(diagram: Diagram, clip: Clip, offset: number): Ref[] {
       diagram.add("lines", { ...l, id: id(l.id), from: end(l.from), to: end(l.to), middle });
     }
     for (const l of clip.labels) diagram.add("labels", { ...l, id: id(l.id), lineId: id(l.lineId) });
+    for (const o of clip.overlays) {
+      diagram.add("overlays", { ...o, id: id(o.id), x: o.x + offset, y: o.y + offset });
+      topLevel.push({ kind: "overlays", id: id(o.id) });
+    }
 
     for (const item of [...clip.shapes, ...clip.texts]) {
       if (parent(item.parentId) !== null) continue;

@@ -102,6 +102,26 @@ export function rectTool(ctx: AppContext): BoxTool<"shapes"> {
   });
 }
 
+export function overlayTool(ctx: AppContext): BoxTool<"overlays"> {
+  return new BoxTool(ctx, {
+    id: "overlay",
+    label: "Overlay",
+    shortcut: "o",
+    // Lucide "square-dashed"
+    icon: [
+      [
+        "path",
+        {
+          d: "M5 3a2 2 0 0 0-2 2M19 3a2 2 0 0 1 2 2M21 19a2 2 0 0 1-2 2M5 21a2 2 0 0 1-2-2M9 3h1M9 21h1M14 3h1M14 21h1M3 9v1M21 9v1M3 14v1M21 14v1",
+        },
+      ],
+    ],
+    kind: "overlays",
+    // A light tint that lets the diagram show through.
+    create: (id, bounds) => ({ id, ...bounds, color: "sky", saturation: 100, transparency: 90 }),
+  });
+}
+
 export function frameTool(ctx: AppContext): BoxTool<"frames"> {
   return new BoxTool(ctx, {
     id: "frame",

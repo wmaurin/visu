@@ -3,7 +3,7 @@ import { anchorPoint, nearestAnchor, SIDE_OUT } from "../layout/anchors";
 import { distanceToPolyline, pointAlong } from "../layout/path";
 import { computeRoute, moveMiddle, type RouteEnd } from "../layout/routing";
 import { tagBox, textWidth } from "../layout/text";
-import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, Ref, Routing, Shape } from "./types";
+import type { Doc, Endpoint, ExportFrame, FreeText, LineLabel, LineShape, Overlay, Ref, Routing, Shape } from "./types";
 
 /**
  * Read-only questions about a document. Pure functions of the Doc, so
@@ -177,6 +177,7 @@ export function itemsInside(doc: Doc, area: Rect): Ref[] {
     }),
     ...refs("labels", doc.labels, (l: LineLabel) => within(labelBox(doc, l))),
     ...refs("texts", doc.texts, (t: FreeText) => within(textBox(t))),
+    ...refs("overlays", doc.overlays, (o: Overlay) => within(o)),
     ...refs("frames", doc.frames, (f: ExportFrame) => within(f)),
   ];
 }
@@ -257,23 +258,35 @@ export function nextFrameName(doc: Doc): string {
   return `Frame${Math.max(0, ...numbers.filter(Number.isInteger)) + 1}`;
 }
 
+/** True when `p` lies on the border of `r`, within the line hit tolerance. */
+function onBorder(r: Rect, p: Point): boolean {
+  return containsPoint(inflate(r, LINE_HIT_TOLERANCE), p) && !containsPoint(inflate(r, -LINE_HIT_TOLERANCE), p);
+}
+
 /**
  * Export frame whose border or title is under the point. Its inside stays
  * free, so items within the frame remain clickable.
  */
 export function frameAt(doc: Doc, p: Point): ExportFrame | undefined {
-  return doc.frames.findLast((f) => {
-    const onBorder =
-      containsPoint(inflate(f, LINE_HIT_TOLERANCE), p) && !containsPoint(inflate(f, -LINE_HIT_TOLERANCE), p);
-    return onBorder || containsPoint(frameTitleBox(f), p);
-  });
+  return doc.frames.findLast((f) => onBorder(f, p) || containsPoint(frameTitleBox(f), p));
 }
 
 /**
- * The item under the point, in drawing order from the top: texts, labels,
- * leaf rectangles, lines, containers (innermost first), frames.
+ * Overlay whose border is under the point. Like frames, the inside stays
+ * free, so the items an overlay covers remain clickable.
+ */
+export function overlayAt(doc: Doc, p: Point): Overlay | undefined {
+  return doc.overlays.findLast((o) => onBorder(o, p));
+}
+
+/**
+ * The item under the point, in drawing order from the top: overlay
+ * borders, texts, labels, leaf rectangles, lines, containers (innermost
+ * first), frames.
  */
 export function pick(doc: Doc, p: Point): Ref | null {
+  const overlay = overlayAt(doc, p);
+  if (overlay) return { kind: "overlays", id: overlay.id };
   const text = textAt(doc, p);
   if (text) return { kind: "texts", id: text.id };
   const label = labelAt(doc, p);

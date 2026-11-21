@@ -3,7 +3,7 @@ import { arrowHead, pathData } from "../layout/path";
 import { TAG_PADDING_X, wrapText } from "../layout/text";
 import type { Rect } from "../core/geometry";
 import { FRAME_TITLE_SIZE, labelBox, layering, route, textBox } from "../model/queries";
-import type { Doc, FreeText, HAlign, LineLabel, LineShape, RectShape, Ref, Shape } from "../model/types";
+import type { Doc, FreeText, HAlign, LineLabel, LineShape, Overlay, RectShape, Ref, Shape } from "../model/types";
 import {
   colours,
   DASH,
@@ -13,6 +13,7 @@ import {
   lineHeightFor,
   linkStyle,
   nodeStyle,
+  overlayStyle,
   PALETTE,
   textFill,
   tagStyle,
@@ -140,6 +141,19 @@ function renderTag(
   return [svgEl("g", { "data-id": item.id }, [...frame, text])];
 }
 
+/** Overlay: tinted fill at its transparency, opaque border in its colour. */
+function renderOverlay(o: Overlay): SVGElement {
+  return svgEl("g", { "data-id": o.id }, [
+    svgEl("rect", {
+      ...rectOf(o),
+      ...overlayStyle,
+      fill: tint(o.color, o.saturation),
+      "fill-opacity": (100 - o.transparency) / 100,
+      stroke: PALETTE[o.color],
+    }),
+  ]);
+}
+
 /**
  * Export frames, drawn on their own layer below the diagram so they never
  * end up in an export: a dashed border and the name above the top left
@@ -173,7 +187,8 @@ function rectOf({ x, y, width, height }: Rect): Rect {
  * Full redraw of the document layer. Cheap enough until diagrams get large.
  * Order from the bottom, as the style guide asks: containers (outermost
  * first), lines, leaf rectangles covering the line ends, then labels and
- * texts so they stay readable where they touch a rectangle.
+ * texts so they stay readable where they touch a rectangle. Overlays
+ * come last, as they highlight areas over everything else.
  * The item being edited hides its text, as the inline editor shows it.
  */
 export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null): void {
@@ -185,5 +200,6 @@ export function renderDiagram(doc: Doc, layer: SVGGElement, editing: Ref | null)
     ...leaves.map((s) => renderShape(s, hidden("shapes", s.id))),
     ...doc.labels.flatMap((l) => (hidden("labels", l.id) ? [] : renderTag(l, labelBox(doc, l), true))),
     ...doc.texts.flatMap((t) => (hidden("texts", t.id) ? [] : renderTag(t, textBox(t), false, t.align))),
+    ...doc.overlays.map(renderOverlay),
   );
 }

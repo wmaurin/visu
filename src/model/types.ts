@@ -130,6 +130,20 @@ export interface ExportFrame extends Rect {
 }
 
 /**
+ * A tinted area drawn over the diagram to highlight a region. Selected
+ * by its border only, so what lies beneath stays clickable.
+ */
+export interface Overlay extends Rect {
+  readonly id: string;
+  /** Border colour. The fill is this colour mixed with white. */
+  readonly color: ColorName;
+  /** Fill strength, 0 (white) to 100 (full colour). */
+  readonly saturation: number;
+  /** Transparency of the fill, 0 (opaque) to 100 (invisible). The border stays opaque. */
+  readonly transparency: number;
+}
+
+/**
  * The whole diagram. Immutable: every change produces a new Doc, which
  * makes snapshots, cancel and undo trivial.
  */
@@ -138,6 +152,7 @@ export interface Doc {
   readonly lines: readonly LineShape[];
   readonly labels: readonly LineLabel[];
   readonly texts: readonly FreeText[];
+  readonly overlays: readonly Overlay[];
   readonly frames: readonly ExportFrame[];
 }
 

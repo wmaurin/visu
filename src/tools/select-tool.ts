@@ -18,6 +18,7 @@ import { frameHandler } from "../selection/frame";
 import type { Handler } from "../selection/handler";
 import { labelHandler } from "../selection/label";
 import { lineHandler } from "../selection/line";
+import { overlayHandler } from "../selection/overlay";
 import { shapeHandler } from "../selection/shape";
 import { textHandler } from "../selection/text";
 import type { CanvasPointer } from "../ui/canvas";
@@ -30,7 +31,8 @@ interface Resolved {
 }
 
 /** Kinds that move together when several items are dragged. Lines follow their anchors. */
-type Movable = "shapes" | "texts" | "frames";
+type Movable = "shapes" | "texts" | "overlays" | "frames";
+const MOVABLE: ReadonlySet<Collection> = new Set<Movable>(["shapes", "texts", "overlays", "frames"]);
 
 /**
  * Selects, drags and edits items. Generic over item kinds: everything
@@ -42,8 +44,8 @@ type Movable = "shapes" | "texts" | "frames";
  * - Dragging a selected item moves all selected items.
  * - A single selected item shows its handles and format bar.
  *
- * Hit order: handles of a single selected item, then texts, labels,
- * shapes, lines and the borders of export frames.
+ * Hit order: handles of a single selected item, then overlay borders,
+ * texts, labels, shapes, lines and the borders of export frames.
  */
 export class SelectTool extends GestureTool {
   readonly id = "select";
@@ -71,6 +73,7 @@ export class SelectTool extends GestureTool {
       lines: lineHandler(ctx),
       labels: labelHandler(ctx),
       texts: textHandler(ctx),
+      overlays: overlayHandler(ctx),
       frames: frameHandler(ctx),
     };
     ctx.diagram.subscribe(() => this.render());
@@ -160,7 +163,7 @@ export class SelectTool extends GestureTool {
   }
 
   /**
-   * Moves all selected rectangles, texts and frames by the same snapped
+   * Moves all selected rectangles, texts, overlays and frames by the same snapped
    * distance, rectangles with everything inside them. Each item counts
    * once, also when it is selected and inside a selected container.
    */
@@ -168,9 +171,10 @@ export class SelectTool extends GestureTool {
     const { diagram } = this.ctx;
     const moving = new Map<string, { kind: Movable; x: number; y: number }>();
     const take = (ref: Ref) => {
-      if (ref.kind !== "shapes" && ref.kind !== "texts" && ref.kind !== "frames") return;
-      const item = diagram.get(ref.kind, ref.id);
-      if (item) moving.set(ref.id, { kind: ref.kind, x: item.x, y: item.y });
+      if (!MOVABLE.has(ref.kind)) return;
+      const kind = ref.kind as Movable;
+      const item = diagram.get(kind, ref.id);
+      if (item) moving.set(ref.id, { kind, x: item.x, y: item.y });
     };
     for (const ref of selected) {
       take(ref);

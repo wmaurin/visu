@@ -7,7 +7,7 @@ import { Diagram } from "./model/diagram";
 import { sameSelection, type Selection } from "./model/types";
 import { renderDiagram, renderFrames } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
-import { frameTool, rectTool } from "./tools/box-tool";
+import { frameTool, overlayTool, rectTool } from "./tools/box-tool";
 import { SelectTool } from "./tools/select-tool";
 import { TextTool } from "./tools/text-tool";
 import type { Tool } from "./tools/tool";
@@ -66,6 +66,7 @@ applySettings();
 const tools: readonly Tool[] = [
   new SelectTool(ctx),
   rectTool(ctx),
+  overlayTool(ctx),
   new ArrowTool(ctx),
   new TextTool(ctx),
   frameTool(ctx),

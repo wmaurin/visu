@@ -8,6 +8,7 @@ import {
   type FreeText,
   type LineLabel,
   type LineShape,
+  type Overlay,
   type RectShape,
 } from "../model/types";
 import { textStyle } from "../render/theme";
@@ -15,14 +16,16 @@ import { textStyle } from "../render/theme";
 /**
  * Project file format: the whole document as versioned JSON.
  *
- *   { "format": "visu", "version": 1, "name": "…", "doc": { shapes, lines, labels, texts, frames } }
+ *   { "format": "visu", "version": 2, "name": "…", "doc": { shapes, lines, labels, texts, overlays, frames } }
+ *
+ * Version 1 files predate overlays and are read as having none.
  *
  * Imported files are untrusted. Every field is checked, unknown fields are
  * dropped, and references between items must resolve.
  */
 
 const FORMAT = "visu";
-const VERSION = 1;
+const VERSION = 2;
 
 export const PROJECT_FILE = {
   /** Appended to the project name, e.g. "Projekt_Eins.visu.json". */
@@ -103,6 +106,17 @@ const text = obj<FreeText>({
   parentId: PARENT,
 });
 
+const overlay = obj<Overlay>({
+  id: ID,
+  x: COORD,
+  y: COORD,
+  width: SIZE,
+  height: SIZE,
+  color: COLOR,
+  saturation: SATURATION,
+  transparency: num(0, 100),
+});
+
 const frame = obj<ExportFrame>({ id: ID, x: COORD, y: COORD, width: SIZE, height: SIZE, name: str(200) });
 
 const doc = obj<Doc>({
@@ -110,6 +124,7 @@ const doc = obj<Doc>({
   lines: arr(line, MAX_ITEMS),
   labels: arr(label, MAX_ITEMS),
   texts: arr(text, MAX_ITEMS),
+  overlays: arr(overlay, MAX_ITEMS),
   frames: arr(frame, MAX_ITEMS),
 });
 
@@ -138,9 +153,22 @@ export function parseProject(text: string): Project {
   } catch {
     throw new ValidationError("The file is not valid JSON.");
   }
-  const { name, doc: d } = file(input, "file");
+  const { name, doc: d } = file(upgrade(input), "file");
   checkReferences(d);
   return { name, doc: d };
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Brings an older file to the current version before it is checked.
+ * Anything unexpected is passed on unchanged, so the checks report it.
+ */
+function upgrade(input: unknown): unknown {
+  if (!isRecord(input) || input.version !== 1 || !isRecord(input.doc)) return input;
+  return { ...input, version: VERSION, doc: { ...input.doc, overlays: [] } };
 }
 
 /** IDs are unique across the document and every reference points at an existing item. */

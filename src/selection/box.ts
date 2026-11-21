@@ -9,12 +9,12 @@ import type { CanvasPointer } from "../ui/canvas";
 import { within, type Handler } from "./handler";
 
 /** Item kinds that are rectangles on the grid: moved, resized, snapped. */
-export type BoxKind = "shapes" | "frames";
+export type BoxKind = "shapes" | "overlays" | "frames";
 
 /**
  * Width and height are multiples of this step, which is also the minimum
  * size. Shapes use two grid steps, so their centre always lies on a grid
- * point and lines can attach there. Frames need no centre.
+ * point and lines can attach there. Overlays and frames need no centre.
  */
 export function sizeStep(kind: BoxKind): number {
   return kind === "shapes" ? 2 * grid() : grid();
@@ -100,7 +100,7 @@ export function boxBehaviour<T extends Item<BoxKind>>(
   };
 }
 
-/** Rechecks what a rectangle sits in and contains. Frames take no part. */
+/** Rechecks what a rectangle sits in and contains. Overlays and frames take no part. */
 function settleBox(ctx: AppContext, kind: BoxKind, id: string): void {
   if (kind === "shapes") settle(ctx.diagram, { kind, id });
 }
