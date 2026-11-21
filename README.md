@@ -1,5 +1,7 @@
 # visu
 
+https://wmaurin.github.io/visu/
+
 ## Usage
 
 ```sh
