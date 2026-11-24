@@ -84,6 +84,39 @@ export function selectSetting<V>(spec: SelectSpec<V>, binding: SettingBinding<V>
   return row;
 }
 
+export interface ToggleSpec {
+  readonly label: string;
+  /** Shown below the label, e.g. what turning it off means. */
+  readonly hint?: string;
+}
+
+/** Checkbox with label. Follows the setting, also when changed elsewhere. */
+export function toggleSetting(spec: ToggleSpec, binding: SettingBinding<boolean>): HTMLElement {
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.addEventListener("change", () => binding.write(input.checked));
+  const sync = () => {
+    input.checked = binding.read();
+  };
+  binding.subscribe(sync);
+  sync();
+
+  const name = document.createElement("span");
+  name.textContent = spec.label;
+
+  const row = document.createElement("label");
+  row.className = "setting setting-inline";
+  row.append(name, input);
+  if (!spec.hint) return row;
+
+  const hint = document.createElement("p");
+  hint.className = "setting-hint";
+  hint.textContent = spec.hint;
+  const group = document.createElement("div");
+  group.append(row, hint);
+  return group;
+}
+
 // Lucide "upload" and "download"
 const UPLOAD: IconDef = [["path", { d: "M12 3v12M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5" }]];
 const DOWNLOAD: IconDef = [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]];

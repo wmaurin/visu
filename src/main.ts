@@ -5,6 +5,7 @@ import { GRID_SIZES, setGrid } from "./core/geometry";
 import { Observable } from "./core/observable";
 import { Diagram } from "./model/diagram";
 import { History } from "./model/history";
+import { autosave, loadStoredProject } from "./project/autosave";
 import { sameSelection, type Selection } from "./model/types";
 import { renderDiagram, renderFrames } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
@@ -16,7 +17,7 @@ import { Canvas } from "./ui/canvas";
 import { InlineEditor } from "./ui/inline-editor";
 import { projectBar } from "./ui/project-bar";
 import { bind, createSettings } from "./settings";
-import { rangeSetting, selectSetting, SettingsMenu, settingsFileActions, type SettingsCategory } from "./ui/settings";
+import { rangeSetting, selectSetting, SettingsMenu, toggleSetting, settingsFileActions, type SettingsCategory } from "./ui/settings";
 import { Toolbar } from "./ui/toolbar";
 import { ZOOM_STEP, zoomBar } from "./ui/zoom-bar";
 
@@ -42,7 +43,15 @@ function keyId(event: KeyboardEvent): string {
 // Composition root
 
 const canvas = new Canvas(requireElement("canvas"));
+const settings = createSettings();
 const diagram = new Diagram();
+const projectName = new Observable("Untitled");
+// Restored before the history starts, so undo never empties the canvas.
+const stored = settings.get().autosave ? loadStoredProject() : null;
+if (stored) {
+  diagram.restore(stored.doc);
+  projectName.set(stored.name);
+}
 const history = new History(diagram);
 const ctx: AppContext = {
   canvas,
@@ -50,9 +59,10 @@ const ctx: AppContext = {
   history,
   selection: new Observable<Selection>([], sameSelection),
   editor: new InlineEditor(canvas, diagram, history, render),
-  settings: createSettings(),
-  projectName: new Observable("Untitled"),
+  settings,
+  projectName,
 };
+autosave(ctx);
 
 /** Pushes the settings into the parts that depend on them, then redraws. */
 function applySettings(): void {
@@ -81,6 +91,15 @@ const settingsCategories: SettingsCategory[] = [
     label: "General",
     // Lucide "sliders-horizontal"
     icon: [["path", { d: "M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4" }]],
+    controls: [
+      toggleSetting(
+        {
+          label: "Keep diagram in this browser",
+          hint: "Restores the diagram after a reload. Stored unencrypted on this device. Turning it off deletes the stored copy.",
+        },
+        bind(ctx.settings, "autosave"),
+      ),
+    ],
   },
   {
     id: "appearance",
@@ -136,6 +155,7 @@ const keymap: Record<string, Command> = {
   "shift+arrowright": commands.nudge(5, 0),
   "shift+arrowup": commands.nudge(0, -5),
   "shift+arrowdown": commands.nudge(0, 5),
+  "mod+alt+n": commands.newProject,
   "mod+o": commands.importProject,
   "mod+s": commands.exportProject,
   // Zoom. "+" sits on different keys, with or without Shift, depending on the layout.

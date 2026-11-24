@@ -4,6 +4,7 @@ import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
 import { copyItems, pasteClip, type Clip } from "./model/clipboard";
+import { EMPTY } from "./model/diagram";
 import { moveItems } from "./model/move";
 import type { Collection, Ref } from "./model/types";
 
@@ -99,6 +100,25 @@ export function createCommands({ diagram, history, selection, editor, projectNam
     return true;
   };
 
+  const hasContent = () => Object.values(diagram.doc).some((items) => items.length > 0);
+
+  /** Replaces the current document, e.g. with an imported or an empty one. */
+  const replaceProject = (name: string, doc: typeof EMPTY) => {
+    editor.close();
+    selection.set([]);
+    diagram.restore(doc);
+    projectName.set(name);
+    // A new document, its history does not reach back.
+    history.reset();
+  };
+
+  /** Starts over with an empty, untitled diagram. */
+  const newProject: Command = () => {
+    if (hasContent() && !window.confirm("Discard the current diagram and start a new one?")) return true;
+    replaceProject("Untitled", EMPTY);
+    return true;
+  };
+
   /** Saves the project under its name, e.g. "Projekt_Eins.visu.json". */
   const exportProject: Command = () => {
     const name = projectName.get();
@@ -115,15 +135,9 @@ export function createCommands({ diagram, history, selection, editor, projectNam
       if (!file) return;
       try {
         const project = parseProject(await readTextFile(file, PROJECT_FILE.maxBytes));
-        const hasContent = Object.values(diagram.doc).some((items) => items.length > 0);
-        // Nothing is saved automatically yet, so replacing needs consent.
-        if (hasContent && !window.confirm("Replace the current diagram with the imported project?")) return;
-        editor.close();
-        selection.set([]);
-        diagram.restore(project.doc);
-        // An import starts a new document, its history does not reach back.
-        history.reset();
-        projectName.set(project.name);
+        // The current diagram is gone afterwards, also from the browser's copy.
+        if (hasContent() && !window.confirm("Replace the current diagram with the imported project?")) return;
+        replaceProject(project.name, project.doc);
         toast(`Imported ${file.name}.`);
       } catch (error) {
         toast(error instanceof Error ? error.message : "The file could not be imported.", "error");
@@ -143,6 +157,7 @@ export function createCommands({ diagram, history, selection, editor, projectNam
     undo,
     redo,
     clearSelection,
+    newProject,
     exportProject,
     importProject,
   };

@@ -2,17 +2,22 @@ import type { Observable } from "../core/observable";
 import { renderIcon, type IconDef } from "../core/svg";
 
 export interface ProjectActions {
+  newProject(): unknown;
   importProject(): unknown;
   exportProject(): unknown;
 }
 
-// Lucide "upload" and "download"
+// Lucide "file-plus", "upload" and "download"
+const NEW: IconDef = [
+  ["path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" }],
+  ["path", { d: "M14 2v4a2 2 0 0 0 2 2h4M9 15h6M12 18v-6" }],
+];
 const UPLOAD: IconDef = [["path", { d: "M12 3v12M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5" }]];
 const DOWNLOAD: IconDef = [["path", { d: "M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5" }]];
 
 /**
- * Floating bar in the top left corner: import and export of the project
- * file, and the project name, which also names the exported file.
+ * Floating bar in the top left corner: a new project, import and export
+ * of the project file, and the project name, which also names the exported file.
  */
 export function projectBar(host: HTMLElement, actions: ProjectActions, name: Observable<string>): void {
   const bar = document.createElement("div");
@@ -21,6 +26,7 @@ export function projectBar(host: HTMLElement, actions: ProjectActions, name: Obs
   bar.setAttribute("aria-label", "Project");
 
   const items: Array<[string, IconDef, () => unknown]> = [
+    ["New project (Ctrl+Alt+N)", NEW, () => actions.newProject()],
     ["Import project (Ctrl+O)", UPLOAD, () => actions.importProject()],
     ["Export project (Ctrl+S)", DOWNLOAD, () => actions.exportProject()],
   ];

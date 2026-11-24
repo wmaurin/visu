@@ -4,7 +4,7 @@ import type { Collection, Doc, Endpoint, Item, Ref } from "./types";
 
 export type Patch<C extends Collection> = Partial<Omit<Item<C>, "id">>;
 
-const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [], frames: [] };
+export const EMPTY: Doc = { shapes: [], lines: [], labels: [], texts: [], frames: [] };
 
 /**
  * The document store. Holds one immutable Doc and replaces it on every

@@ -267,6 +267,19 @@ body {
   outline-offset: 1px;
 }
 
+.setting input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--focus);
+}
+
+.setting-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .setting-head {
   display: flex;
   justify-content: space-between;
