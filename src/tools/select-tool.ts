@@ -18,7 +18,6 @@ import { frameHandler } from "../selection/frame";
 import type { Handler } from "../selection/handler";
 import { labelHandler } from "../selection/label";
 import { lineHandler } from "../selection/line";
-import { overlayHandler } from "../selection/overlay";
 import { shapeHandler } from "../selection/shape";
 import { textHandler } from "../selection/text";
 import type { CanvasPointer } from "../ui/canvas";
@@ -40,8 +39,8 @@ interface Resolved {
  * - Dragging a selected item moves all selected items.
  * - A single selected item shows its handles and format bar.
  *
- * Hit order: handles of a single selected item, then overlay borders,
- * texts, labels, shapes, lines and the borders of export frames.
+ * Hit order: handles of a single selected item, then texts, labels,
+ * shapes, lines and the borders of export frames.
  */
 export class SelectTool extends GestureTool {
   readonly id = "select";
@@ -69,7 +68,6 @@ export class SelectTool extends GestureTool {
       lines: lineHandler(ctx),
       labels: labelHandler(ctx),
       texts: textHandler(ctx),
-      overlays: overlayHandler(ctx),
       frames: frameHandler(ctx),
     };
     ctx.diagram.subscribe(() => this.render());

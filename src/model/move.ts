@@ -4,8 +4,8 @@ import { bentLinesBetween, descendants } from "./queries";
 import type { Collection, Ref, Selection } from "./types";
 
 /** Kinds that move together when several items are moved. Lines follow their anchors. */
-type Movable = "shapes" | "texts" | "overlays" | "frames";
-const MOVABLE: ReadonlySet<Collection> = new Set<Movable>(["shapes", "texts", "overlays", "frames"]);
+type Movable = "shapes" | "texts" | "frames";
+const MOVABLE: ReadonlySet<Collection> = new Set<Movable>(["shapes", "texts", "frames"]);
 
 export interface Move {
   /** Places every item at its start position plus the offset. */
@@ -15,7 +15,7 @@ export interface Move {
 }
 
 /**
- * Moves selected rectangles, texts, overlays and frames by the same
+ * Moves selected rectangles, texts and frames by the same
  * distance, rectangles with everything inside them. Each item counts
  * once, also when it is selected and inside a selected container.
  * Offsets are relative to where the items were when the move began.

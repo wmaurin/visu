@@ -293,5 +293,4 @@ function checkFrames(doc: Doc, warn: Warn): void {
       warn(at("lines", l.id), "leaves every export frame");
     }
   }
-  for (const o of doc.overlays) if (!framed(o)) warn(at("overlays", o.id), "outside every export frame");
 }

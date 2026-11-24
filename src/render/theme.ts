@@ -122,12 +122,6 @@ export const frameStyle = {
   "stroke-dasharray": "6 4",
 } as const;
 
-/** Highlight area over the diagram. Fill and its opacity come from the item. */
-export const overlayStyle = {
-  "stroke-width": 1.5,
-  rx: 4,
-} as const;
-
 export const nodeStyle = {
   fill: colours.paper,
   stroke: colours.diagram,

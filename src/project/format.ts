@@ -9,7 +9,6 @@ import {
   type FreeText,
   type LineLabel,
   type LineShape,
-  type Overlay,
   type RectShape,
   type Side,
 } from "../model/types";
@@ -18,9 +17,10 @@ import { tagStyle, textStyle } from "../render/theme";
 /**
  * Project file format: the whole document as versioned JSON.
  *
- *   { "format": "visu", "version": 2, "name": "…", "doc": { shapes, lines, labels, texts, overlays, frames } }
+ *   { "format": "visu", "version": 2, "name": "…", "doc": { shapes, lines, labels, texts, frames } }
  *
- * Version 1 files predate overlays and are read as having none.
+ * Version 1 files read as they are. Version 2 once carried overlays, an
+ * item kind since removed. Like any unknown field, they are dropped.
  *
  * Only ids, geometry, line ends, label texts and frame names are required.
  * Every other field may be left out and gets the value a new item gets in
@@ -145,17 +145,6 @@ const text = obj<Raw<FreeText>>({
   parentId: AUTO_PARENT,
 });
 
-const overlay = obj<Overlay>({
-  id: ID,
-  x: COORD,
-  y: COORD,
-  width: SIZE,
-  height: SIZE,
-  color: optional(COLOR, "sky"),
-  saturation: optional(SATURATION, 100),
-  transparency: optional(num(0, 100), 90),
-});
-
 const frame = obj<ExportFrame>({ id: ID, x: COORD, y: COORD, width: SIZE, height: SIZE, name: str(200) });
 
 const doc = obj<RawDoc>({
@@ -163,7 +152,6 @@ const doc = obj<RawDoc>({
   lines: optional(arr(line, MAX_ITEMS), []),
   labels: optional(arr(label, MAX_ITEMS), []),
   texts: optional(arr(text, MAX_ITEMS), []),
-  overlays: optional(arr(overlay, MAX_ITEMS), []),
   frames: optional(arr(frame, MAX_ITEMS), []),
 });
 
@@ -175,7 +163,7 @@ export interface Project {
 
 const file = obj<{ format: string; version: number; name: string; doc: RawDoc }>({
   format: oneOf(FORMAT),
-  version: oneOf(VERSION),
+  version: oneOf(1, VERSION),
   name: str(200),
   doc,
 });
@@ -192,7 +180,7 @@ export function parseProject(text: string): Project {
   } catch {
     throw new ValidationError("The file is not valid JSON.");
   }
-  const { name, doc: raw } = file(upgrade(input), "file");
+  const { name, doc: raw } = file(input, "file");
   const d = complete(raw);
   checkReferences(d);
   return { name, doc: d };
@@ -235,19 +223,6 @@ function complete(raw: RawDoc): Doc {
         : { ...t, parentId: parentFor(base, { kind: "texts", id: t.id }, childBounds(t)) },
     ),
   };
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-/**
- * Brings an older file to the current version before it is checked.
- * Anything unexpected is passed on unchanged, so the checks report it.
- */
-function upgrade(input: unknown): unknown {
-  if (!isRecord(input) || input.version !== 1 || !isRecord(input.doc)) return input;
-  return { ...input, version: VERSION, doc: { ...input.doc, overlays: [] } };
 }
 
 /** IDs are unique across the document and every reference points at an existing item. */
