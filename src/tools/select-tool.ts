@@ -1,8 +1,8 @@
 import type { AppContext } from "../context";
 import { rectFromPoints } from "../core/geometry";
 import { svgEl, type IconDef } from "../core/svg";
-import { settle } from "../model/hierarchy";
-import { bentLinesBetween, descendants, itemsInside, pick, route } from "../model/queries";
+import { moveItems } from "../model/move";
+import { itemsInside, pick, route } from "../model/queries";
 import {
   includesRef,
   sameRef,
@@ -29,10 +29,6 @@ interface Resolved {
   readonly handler: Handler<AnyItem>;
   readonly item: AnyItem;
 }
-
-/** Kinds that move together when several items are dragged. Lines follow their anchors. */
-type Movable = "shapes" | "texts" | "overlays" | "frames";
-const MOVABLE: ReadonlySet<Collection> = new Set<Movable>(["shapes", "texts", "overlays", "frames"]);
 
 /**
  * Selects, drags and edits items. Generic over item kinds: everything
@@ -162,45 +158,12 @@ export class SelectTool extends GestureTool {
     };
   }
 
-  /**
-   * Moves all selected rectangles, texts, overlays and frames by the same snapped
-   * distance, rectangles with everything inside them. Each item counts
-   * once, also when it is selected and inside a selected container.
-   */
+  /** Moves all selected items by the same snapped distance. */
   private moveTogether(start: CanvasPointer, selected: Selection): Gesture {
-    const { diagram } = this.ctx;
-    const moving = new Map<string, { kind: Movable; x: number; y: number }>();
-    const take = (ref: Ref) => {
-      if (!MOVABLE.has(ref.kind)) return;
-      const kind = ref.kind as Movable;
-      const item = diagram.get(kind, ref.id);
-      if (item) moving.set(ref.id, { kind, x: item.x, y: item.y });
-    };
-    for (const ref of selected) {
-      take(ref);
-      if (ref.kind === "shapes") descendants(diagram.doc, ref.id).forEach(take);
-    }
-    // Lines running only between moving rectangles keep their dragged middle run in step.
-    const shapeIds = new Set([...moving].filter(([, m]) => m.kind === "shapes").map(([id]) => id));
-    const bent = bentLinesBetween(diagram.doc, shapeIds);
-
+    const move = moveItems(this.ctx.diagram, selected);
     return {
-      move: ({ point }) => {
-        const dx = point.x - start.point.x;
-        const dy = point.y - start.point.y;
-        diagram.batch(() => {
-          for (const [id, { kind, x, y }] of moving) diagram.update(kind, id, { x: x + dx, y: y + dy });
-          for (const l of bent) diagram.update("lines", l.id, { middle: { x: l.middle!.x + dx, y: l.middle!.y + dy } });
-        });
-      },
-      end: () => {
-        // Moved items may now sit in, or around, other rectangles.
-        diagram.batch(() => {
-          for (const { kind, id } of selected) {
-            if (kind === "shapes" || kind === "texts") settle(diagram, { kind, id });
-          }
-        });
-      },
+      move: ({ point }) => move.to(point.x - start.point.x, point.y - start.point.y),
+      end: () => move.settle(),
     };
   }
 

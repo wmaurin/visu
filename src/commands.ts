@@ -4,6 +4,8 @@ import { grid } from "./core/geometry";
 import { parseProject, PROJECT_FILE, serializeProject } from "./project/format";
 import { toast } from "./ui/toast";
 import { copyItems, pasteClip, type Clip } from "./model/clipboard";
+import { moveItems } from "./model/move";
+import type { Collection, Ref } from "./model/types";
 
 /** A command reports whether it did anything, so the key press is consumed. */
 export type Command = () => boolean;
@@ -13,7 +15,7 @@ export type Command = () => boolean;
  * internal to the app on purpose, so foreign clipboard content is never
  * read or parsed.
  */
-export function createCommands({ diagram, selection, editor, projectName }: AppContext) {
+export function createCommands({ diagram, history, selection, editor, projectName }: AppContext) {
   let clipboard: Clip | null = null;
   /** Pastes since the last copy. Each one lands one grid step further. */
   let pastes = 0;
@@ -39,6 +41,55 @@ export function createCommands({ diagram, selection, editor, projectName }: AppC
     if (!clipboard) return false;
     pastes += 1;
     selection.set(pasteClip(diagram, clipboard, pastes * grid()));
+    return true;
+  };
+
+  const cut: Command = () => copy() && deleteSelection();
+
+  /** Copies the selection in place, one grid step down and right. Leaves the clipboard alone. */
+  const duplicate: Command = () => {
+    const clip = copyItems(diagram.doc, selection.get());
+    if (!clip) return false;
+    selection.set(pasteClip(diagram, clip, grid()));
+    return true;
+  };
+
+  /** Selects every item. Labels stay out, they belong to their lines. */
+  const selectAll: Command = () => {
+    const doc = diagram.doc;
+    const kinds = (Object.keys(doc) as Collection[]).filter((kind) => kind !== "labels");
+    selection.set(kinds.flatMap((kind) => doc[kind].map((item): Ref => ({ kind, id: item.id }))));
+    return true;
+  };
+
+  /** Moves the selection by whole grid steps. Each press is one undo step. */
+  const nudge =
+    (dx: number, dy: number): Command =>
+    () => {
+      const selected = selection.get();
+      if (selected.length === 0) return false;
+      const move = moveItems(diagram, selected);
+      diagram.batch(() => {
+        move.to(dx * grid(), dy * grid());
+        move.settle();
+      });
+      return true;
+    };
+
+  /** Undo and redo drop selected items that no longer exist. */
+  const pruneSelection = () => {
+    selection.set(selection.get().filter((ref) => diagram.get(ref.kind, ref.id)));
+  };
+
+  const undo: Command = () => {
+    if (!history.undo()) return false;
+    pruneSelection();
+    return true;
+  };
+
+  const redo: Command = () => {
+    if (!history.redo()) return false;
+    pruneSelection();
     return true;
   };
 
@@ -70,6 +121,8 @@ export function createCommands({ diagram, selection, editor, projectName }: AppC
         editor.close();
         selection.set([]);
         diagram.restore(project.doc);
+        // An import starts a new document, its history does not reach back.
+        history.reset();
         projectName.set(project.name);
         toast(`Imported ${file.name}.`);
       } catch (error) {
@@ -79,5 +132,18 @@ export function createCommands({ diagram, selection, editor, projectName }: AppC
     return true;
   };
 
-  return { deleteSelection, copy, paste, clearSelection, exportProject, importProject };
+  return {
+    deleteSelection,
+    copy,
+    cut,
+    paste,
+    duplicate,
+    selectAll,
+    nudge,
+    undo,
+    redo,
+    clearSelection,
+    exportProject,
+    importProject,
+  };
 }

@@ -4,6 +4,7 @@ import type { AppContext } from "./context";
 import { GRID_SIZES, setGrid } from "./core/geometry";
 import { Observable } from "./core/observable";
 import { Diagram } from "./model/diagram";
+import { History } from "./model/history";
 import { sameSelection, type Selection } from "./model/types";
 import { renderDiagram, renderFrames } from "./render/renderer";
 import { ArrowTool } from "./tools/arrow-tool";
@@ -42,11 +43,13 @@ function keyId(event: KeyboardEvent): string {
 
 const canvas = new Canvas(requireElement("canvas"));
 const diagram = new Diagram();
+const history = new History(diagram);
 const ctx: AppContext = {
   canvas,
   diagram,
+  history,
   selection: new Observable<Selection>([], sameSelection),
-  editor: new InlineEditor(canvas, diagram, render),
+  editor: new InlineEditor(canvas, diagram, history, render),
   settings: createSettings(),
   projectName: new Observable("Untitled"),
 };
@@ -117,8 +120,23 @@ const keymap: Record<string, Command> = {
   escape: () => !!active.cancel?.() || commands.clearSelection(),
   delete: commands.deleteSelection,
   backspace: commands.deleteSelection,
+  "mod+z": commands.undo,
+  "mod+shift+z": commands.redo,
+  "mod+y": commands.redo,
   "mod+c": commands.copy,
+  "mod+x": commands.cut,
   "mod+v": commands.paste,
+  "mod+d": commands.duplicate,
+  "mod+a": commands.selectAll,
+  // Arrows move the selection one grid step, with Shift five.
+  arrowleft: commands.nudge(-1, 0),
+  arrowright: commands.nudge(1, 0),
+  arrowup: commands.nudge(0, -1),
+  arrowdown: commands.nudge(0, 1),
+  "shift+arrowleft": commands.nudge(-5, 0),
+  "shift+arrowright": commands.nudge(5, 0),
+  "shift+arrowup": commands.nudge(0, -5),
+  "shift+arrowdown": commands.nudge(0, 5),
   "mod+o": commands.importProject,
   "mod+s": commands.exportProject,
   // Zoom. "+" sits on different keys, with or without Shift, depending on the layout.

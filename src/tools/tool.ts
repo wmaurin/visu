@@ -27,6 +27,7 @@ export interface Tool {
  * One drag interaction, from pointer down to pointer up (State pattern).
  * A gesture edits the document directly. Cancelling restores the snapshot
  * taken before it began, so gestures need no undo logic of their own.
+ * A kept gesture is one undo step.
  */
 export interface Gesture {
   move(p: CanvasPointer): void;
@@ -64,9 +65,14 @@ export abstract class GestureTool implements Tool {
 
   pointerDown(p: CanvasPointer): void {
     if (p.event.button !== 0 || this.gesture) return;
+    this.ctx.history.checkpoint();
     const snapshot = this.ctx.diagram.doc;
+    this.ctx.history.hold();
     const gesture = this.begin(p);
-    if (!gesture) return;
+    if (!gesture) {
+      this.ctx.history.release();
+      return;
+    }
     this.snapshot = snapshot;
     this.gesture = gesture;
   }
@@ -96,6 +102,7 @@ export abstract class GestureTool implements Tool {
     this.snapshot = null;
     gesture?.dispose?.();
     if (!keep && snapshot) this.ctx.diagram.restore(snapshot);
+    this.ctx.history.release();
     this.settled();
   }
 }

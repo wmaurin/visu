@@ -1,5 +1,6 @@
 import { svgEl } from "../core/svg";
 import type { Diagram } from "../model/diagram";
+import type { History } from "../model/history";
 import type { Ref } from "../model/types";
 import type { Canvas } from "./canvas";
 
@@ -35,6 +36,7 @@ interface Session {
  * markup is never interpreted.
  *
  * Editing ends on blur, Escape or Enter (see FieldSpec.multiline).
+ * A whole session is one undo step.
  */
 export class InlineEditor {
   private session: Session | null = null;
@@ -42,6 +44,7 @@ export class InlineEditor {
   constructor(
     private readonly canvas: Canvas,
     private readonly diagram: Diagram,
+    private readonly history: History,
     private readonly onChange: () => void,
   ) {}
 
@@ -78,6 +81,7 @@ export class InlineEditor {
     field.addEventListener("input", () => this.layout());
     field.addEventListener("blur", () => this.close());
 
+    this.history.hold();
     const unsubscribe = this.diagram.subscribe(() => this.layout());
     this.session = { ref, spec, frame, root, field, unsubscribe };
     this.layout();
@@ -95,6 +99,7 @@ export class InlineEditor {
     const text = readText(session.field);
     session.frame.remove();
     session.spec.commit(text);
+    this.history.release();
     this.onChange();
   }
 
