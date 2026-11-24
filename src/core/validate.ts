@@ -8,7 +8,10 @@
 
 export class ValidationError extends Error {}
 
-export type Check<T> = (value: unknown, path: string) => T;
+export type Check<T> = ((value: unknown, path: string) => T) & {
+  /** Used by `obj` when the key is missing. Without it, the key is required. */
+  readonly fallback?: { readonly value: T };
+};
 
 function fail(path: string, problem: string): never {
   throw new ValidationError(`${path}: ${problem}`);
@@ -43,6 +46,11 @@ export const bool: Check<boolean> = (v, path) => {
   return v;
 };
 
+/** Like `check`, but `obj` uses `value` when the key is missing. */
+export function optional<T>(check: Check<T>, value: T): Check<T> {
+  return Object.assign((v: unknown, path: string) => check(v, path), { fallback: { value } });
+}
+
 /** The value checked by `check`, or null. */
 export function nullable<T>(check: Check<T>): Check<T | null> {
   return (v, path) => (v === null ? null : check(v, path));
@@ -62,8 +70,10 @@ export function obj<T>(shape: { readonly [K in keyof T]-?: Check<T[K]> }): Check
     const record = v as Record<string, unknown>;
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(shape) as Array<keyof T & string>) {
-      if (!Object.hasOwn(record, key)) fail(`${path}.${key}`, "missing");
-      out[key] = shape[key](record[key], `${path}.${key}`);
+      const check = shape[key];
+      if (Object.hasOwn(record, key)) out[key] = check(record[key], `${path}.${key}`);
+      else if (check.fallback) out[key] = check.fallback.value;
+      else fail(`${path}.${key}`, "missing");
     }
     return out as T;
   };

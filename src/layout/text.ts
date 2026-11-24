@@ -48,13 +48,38 @@ export function tagBox(
   return anchoredBox(anchor, tagWidth(text, fontSize), tagHeight(fontSize), align, valign);
 }
 
+/**
+ * Advance widths in em of Arial, the font the stack falls back to on most
+ * systems, grouped by character. Used when no canvas can measure, e.g.
+ * outside the browser. Close enough to judge whether text fits.
+ */
+const GLYPH_EM: ReadonlyArray<readonly [RegExp, number]> = [
+  [/[ijl.,:;'|!]/, 0.222],
+  [/[ ft\/[\]()I-]/, 0.278],
+  [/[r"*]/, 0.333],
+  [/[cksvxyzJ_]/, 0.5],
+  [/[mM]/, 0.833],
+  [/[wW]/, 0.75],
+  [/[A-Z]/, 0.667],
+];
+/** Lowercase, digits and everything else. */
+const DEFAULT_EM = 0.556;
+/** Bold glyphs run this much wider on average. */
+const BOLD_FACTOR = 1.07;
+
+function estimateWidth(text: string, fontSize: number, bold: boolean): number {
+  let em = 0;
+  for (const char of text) em += GLYPH_EM.find(([re]) => re.test(char))?.[1] ?? DEFAULT_EM;
+  return em * fontSize * (bold ? BOLD_FACTOR : 1);
+}
+
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
 function measurer(fontSize: number, bold: boolean): (s: string) => number {
-  measureCtx ??= document.createElement("canvas").getContext("2d");
+  // No document outside the browser, e.g. in the check script.
+  measureCtx ??= typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
   const ctx = measureCtx;
-  // Rough fallback if no 2D context is available.
-  if (!ctx) return (s) => s.length * fontSize * (bold ? 0.6 : 0.55);
+  if (!ctx) return (s) => estimateWidth(s, fontSize, bold);
   ctx.font = cssFont(fontSize, bold);
   return (s) => ctx.measureText(s).width;
 }

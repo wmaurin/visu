@@ -1,5 +1,6 @@
-import { arr, bool, nullable, num, obj, oneOf, str, ValidationError, type Check } from "../core/validate";
+import { arr, bool, nullable, num, obj, oneOf, optional, str, ValidationError, type Check } from "../core/validate";
 import type { Point } from "../core/geometry";
+import { childBounds, parentFor } from "../model/queries";
 import {
   COLOR_NAMES,
   type Doc,
@@ -10,8 +11,9 @@ import {
   type LineShape,
   type Overlay,
   type RectShape,
+  type Side,
 } from "../model/types";
-import { textStyle } from "../render/theme";
+import { tagStyle, textStyle } from "../render/theme";
 
 /**
  * Project file format: the whole document as versioned JSON.
@@ -19,6 +21,19 @@ import { textStyle } from "../render/theme";
  *   { "format": "visu", "version": 2, "name": "…", "doc": { shapes, lines, labels, texts, overlays, frames } }
  *
  * Version 1 files predate overlays and are read as having none.
+ *
+ * Only ids, geometry, line ends, label texts and frame names are required.
+ * Every other field may be left out and gets the value a new item gets in
+ * the editor, so hand written files stay short. Two fields depend on the
+ * rest of the document:
+ *
+ *   - `parentId` left out: the innermost rectangle that contains the item,
+ *     as the editor would set it after a move.
+ *   - `offset` of an anchor left out: the middle of its side, on the
+ *     router's 8 px lattice.
+ *
+ * An endpoint without `kind` is an anchor when it has a `shapeId` and a
+ * free point otherwise. Saved files always carry every field.
  *
  * Imported files are untrusted. Every field is checked, unknown fields are
  * dropped, and references between items must resolve.
@@ -46,64 +61,88 @@ const H_ALIGN = oneOf("left", "center", "right");
 const V_ALIGN = oneOf("top", "middle", "bottom");
 const CAP = oneOf("none", "arrow");
 const PARENT = nullable(ID);
+/** Left out means "derive it from the geometry", see `complete`. */
+const AUTO_PARENT = optional<string | null | undefined>(PARENT, undefined);
 const TEXT_COLOR = oneOf("black", "white");
 const COLOR = oneOf(...COLOR_NAMES);
 const SATURATION = num(0, 100);
 
-const rect = obj<RectShape>({
+/** Items as read, before `complete` fills in the fields that depend on the rest. */
+type Raw<T> = Omit<T, "parentId"> & { readonly parentId: string | null | undefined };
+type RawAnchor = Omit<Extract<Endpoint, { kind: "anchor" }>, "offset"> & { readonly offset: number | undefined };
+type RawEndpoint = RawAnchor | Extract<Endpoint, { kind: "free" }>;
+type RawLine = Omit<LineShape, "from" | "to"> & { readonly from: RawEndpoint; readonly to: RawEndpoint };
+type RawDoc = Omit<Doc, "shapes" | "lines" | "texts"> & {
+  readonly shapes: readonly Raw<RectShape>[];
+  readonly lines: readonly RawLine[];
+  readonly texts: readonly Raw<FreeText>[];
+};
+
+const rect = obj<Raw<RectShape>>({
   id: ID,
-  kind: oneOf("rect"),
+  kind: optional(oneOf("rect"), "rect"),
   x: COORD,
   y: COORD,
   width: SIZE,
   height: SIZE,
-  text: str(MAX_TEXT),
-  align: H_ALIGN,
-  valign: V_ALIGN,
-  fontSize: FONT_SIZE,
-  bold: bool,
-  textColor: TEXT_COLOR,
-  color: COLOR,
-  saturation: SATURATION,
-  parentId: PARENT,
+  text: optional(str(MAX_TEXT), ""),
+  align: optional(H_ALIGN, "center"),
+  valign: optional(V_ALIGN, "middle"),
+  fontSize: optional(FONT_SIZE, textStyle.defaultFontSize),
+  bold: optional(bool, false),
+  textColor: optional(TEXT_COLOR, "black"),
+  color: optional(COLOR, "black"),
+  saturation: optional(SATURATION, 0),
+  parentId: AUTO_PARENT,
 });
 
-const anchorEnd = obj<Extract<Endpoint, { kind: "anchor" }>>({
-  kind: oneOf("anchor"),
+const anchorEnd = obj<RawAnchor>({
+  kind: optional(oneOf("anchor"), "anchor"),
   shapeId: ID,
   side: oneOf("n", "e", "s", "w"),
-  offset: num(0, 1_000_000),
+  offset: optional<number | undefined>(num(0, 1_000_000), undefined),
 });
-const freeEnd = obj<Extract<Endpoint, { kind: "free" }>>({ kind: oneOf("free"), x: COORD, y: COORD });
-const endpoint: Check<Endpoint> = (v, path) =>
-  (v as { kind?: unknown } | null)?.kind === "anchor" ? anchorEnd(v, path) : freeEnd(v, path);
+const freeEnd = obj<Extract<Endpoint, { kind: "free" }>>({ kind: optional(oneOf("free"), "free"), x: COORD, y: COORD });
+const endpoint: Check<RawEndpoint> = (v, path) => {
+  const end = v as { kind?: unknown; shapeId?: unknown } | null;
+  const isAnchor = end?.kind === "anchor" || (end?.kind === undefined && end?.shapeId !== undefined);
+  return isAnchor ? anchorEnd(v, path) : freeEnd(v, path);
+};
 
-const line = obj<LineShape>({
+const line = obj<RawLine>({
   id: ID,
   from: endpoint,
   to: endpoint,
-  routing: oneOf("straight", "orthogonal"),
-  middle: nullable(obj<Point>({ x: COORD, y: COORD })),
-  style: oneOf("solid", "dashed"),
-  color: COLOR,
-  saturation: SATURATION,
-  startCap: CAP,
-  endCap: CAP,
+  routing: optional(oneOf("straight", "orthogonal"), "orthogonal"),
+  middle: optional(nullable(obj<Point>({ x: COORD, y: COORD })), null),
+  style: optional(oneOf("solid", "dashed"), "solid"),
+  color: optional(COLOR, "black"),
+  saturation: optional(SATURATION, 100),
+  startCap: optional(CAP, "none"),
+  endCap: optional(CAP, "arrow"),
 });
 
-const label = obj<LineLabel>({ id: ID, lineId: ID, text: str(MAX_TEXT), t: num(0, 1), fontSize: FONT_SIZE, bold: bool, textColor: TEXT_COLOR });
+const label = obj<LineLabel>({
+  id: ID,
+  lineId: ID,
+  text: str(MAX_TEXT),
+  t: optional(num(0, 1), 0.5),
+  fontSize: optional(FONT_SIZE, tagStyle.defaultFontSize),
+  bold: optional(bool, false),
+  textColor: optional(TEXT_COLOR, "black"),
+});
 
-const text = obj<FreeText>({
+const text = obj<Raw<FreeText>>({
   id: ID,
   x: COORD,
   y: COORD,
   text: str(MAX_TEXT),
-  fontSize: FONT_SIZE,
-  bold: bool,
-  textColor: TEXT_COLOR,
-  align: H_ALIGN,
-  valign: V_ALIGN,
-  parentId: PARENT,
+  fontSize: optional(FONT_SIZE, tagStyle.defaultFontSize),
+  bold: optional(bool, false),
+  textColor: optional(TEXT_COLOR, "black"),
+  align: optional(H_ALIGN, "left"),
+  valign: optional(V_ALIGN, "top"),
+  parentId: AUTO_PARENT,
 });
 
 const overlay = obj<Overlay>({
@@ -112,20 +151,20 @@ const overlay = obj<Overlay>({
   y: COORD,
   width: SIZE,
   height: SIZE,
-  color: COLOR,
-  saturation: SATURATION,
-  transparency: num(0, 100),
+  color: optional(COLOR, "sky"),
+  saturation: optional(SATURATION, 100),
+  transparency: optional(num(0, 100), 90),
 });
 
 const frame = obj<ExportFrame>({ id: ID, x: COORD, y: COORD, width: SIZE, height: SIZE, name: str(200) });
 
-const doc = obj<Doc>({
-  shapes: arr(rect, MAX_ITEMS),
-  lines: arr(line, MAX_ITEMS),
-  labels: arr(label, MAX_ITEMS),
-  texts: arr(text, MAX_ITEMS),
-  overlays: arr(overlay, MAX_ITEMS),
-  frames: arr(frame, MAX_ITEMS),
+const doc = obj<RawDoc>({
+  shapes: optional(arr(rect, MAX_ITEMS), []),
+  lines: optional(arr(line, MAX_ITEMS), []),
+  labels: optional(arr(label, MAX_ITEMS), []),
+  texts: optional(arr(text, MAX_ITEMS), []),
+  overlays: optional(arr(overlay, MAX_ITEMS), []),
+  frames: optional(arr(frame, MAX_ITEMS), []),
 });
 
 /** A project: its name and the diagram. */
@@ -134,7 +173,7 @@ export interface Project {
   readonly doc: Doc;
 }
 
-const file = obj<{ format: string; version: number; name: string; doc: Doc }>({
+const file = obj<{ format: string; version: number; name: string; doc: RawDoc }>({
   format: oneOf(FORMAT),
   version: oneOf(VERSION),
   name: str(200),
@@ -153,9 +192,49 @@ export function parseProject(text: string): Project {
   } catch {
     throw new ValidationError("The file is not valid JSON.");
   }
-  const { name, doc: d } = file(upgrade(input), "file");
+  const { name, doc: raw } = file(upgrade(input), "file");
+  const d = complete(raw);
   checkReferences(d);
   return { name, doc: d };
+}
+
+/** The router's lattice in px. Anchors on it get routed around shapes. */
+const LATTICE = 8;
+
+/** Middle of a side, rounded to the lattice. */
+function middleOf(shape: Raw<RectShape> | undefined, side: Side): number {
+  const length = !shape ? 0 : side === "n" || side === "s" ? shape.width : shape.height;
+  return Math.round(length / 2 / LATTICE) * LATTICE;
+}
+
+/**
+ * Fills in the fields that were left out and depend on other items:
+ * anchor offsets and parents. Unknown ids are left for `checkReferences`
+ * to report.
+ */
+function complete(raw: RawDoc): Doc {
+  const shapes = new Map(raw.shapes.map((s) => [s.id, s]));
+  const end = (e: RawEndpoint): Endpoint =>
+    e.kind === "free" ? e : { ...e, offset: e.offset ?? middleOf(shapes.get(e.shapeId), e.side) };
+
+  // Parents first resolve against a document where left out ones are top level.
+  const base: Doc = {
+    ...raw,
+    shapes: raw.shapes.map((s) => ({ ...s, parentId: s.parentId ?? null })),
+    lines: raw.lines.map((l) => ({ ...l, from: end(l.from), to: end(l.to) })),
+    texts: raw.texts.map((t) => ({ ...t, parentId: t.parentId ?? null })),
+  };
+  return {
+    ...base,
+    shapes: base.shapes.map((s, i) =>
+      raw.shapes[i]!.parentId !== undefined ? s : { ...s, parentId: parentFor(base, { kind: "shapes", id: s.id }, s) },
+    ),
+    texts: base.texts.map((t, i) =>
+      raw.texts[i]!.parentId !== undefined
+        ? t
+        : { ...t, parentId: parentFor(base, { kind: "texts", id: t.id }, childBounds(t)) },
+    ),
+  };
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
