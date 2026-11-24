@@ -1,8 +1,8 @@
 import type { AppContext } from "../context";
 import { grid, type Point, type Rect } from "../core/geometry";
 import { settle } from "../model/hierarchy";
-import { bentLinesBetween, descendants } from "../model/queries";
-import type { ChildKind, Item } from "../model/types";
+import { moveItems } from "../model/move";
+import type { Item } from "../model/types";
 import { HANDLE_HIT_SLOP, HANDLE_SIZE, selectionBox, selectionOutline, sizeReadout, squareHandle } from "../render/overlay";
 import type { Gesture } from "../tools/tool";
 import type { CanvasPointer } from "../ui/canvas";
@@ -69,32 +69,11 @@ export function boxBehaviour<T extends Item<BoxKind>>(
     },
 
     drag: (b, start) => {
-      // Everything inside a rectangle moves with it, from where it was at the start.
-      const { doc } = ctx.diagram;
-      const moving = [
-        { kind, item: b as Item<BoxKind | ChildKind> },
-        ...(kind === "shapes" ? descendants(doc, b.id) : []).flatMap((ref) => {
-          const item = ctx.diagram.get(ref.kind as ChildKind, ref.id);
-          return item ? [{ kind: ref.kind as ChildKind, item }] : [];
-        }),
-      ];
-      // Lines running only between moving rectangles keep their dragged middle run in step.
-      const shapeIds = new Set(moving.filter((m) => m.kind === "shapes").map((m) => m.item.id));
-      const bent = kind === "shapes" ? bentLinesBetween(doc, shapeIds) : [];
+      // Everything inside a rectangle moves with it.
+      const move = moveItems(ctx.diagram, [{ kind, id: b.id }]);
       return {
-        move: ({ point }) => {
-          const dx = point.x - start.point.x;
-          const dy = point.y - start.point.y;
-          ctx.diagram.batch(() => {
-            for (const { kind: k, item } of moving) {
-              ctx.diagram.update(k, item.id, { x: item.x + dx, y: item.y + dy });
-            }
-            for (const l of bent) {
-              ctx.diagram.update("lines", l.id, { middle: { x: l.middle!.x + dx, y: l.middle!.y + dy } });
-            }
-          });
-        },
-        end: () => settleBox(ctx, kind, b.id),
+        move: ({ point }) => move.to(point.x - start.point.x, point.y - start.point.y),
+        end: () => move.settle(),
       };
     },
   };
