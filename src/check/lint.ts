@@ -1,6 +1,6 @@
-import type { Point, Rect } from "../core/geometry";
+import { inflate, type Point, type Rect } from "../core/geometry";
 import { ValidationError } from "../core/validate";
-import { wrapText } from "../layout/text";
+import { textWidth, wrapText } from "../layout/text";
 import { childBounds, labelBox, layering, parentFor, resolve, route, textBox } from "../model/queries";
 import type { Doc, Endpoint, FreeText, Ref, Shape } from "../model/types";
 import { parseProject } from "../project/format";
@@ -24,6 +24,8 @@ export interface Finding {
 const LATTICE = 8;
 /** Shared runs shorter than this are only touching, e.g. at a corner. */
 const MIN_OVERLAP = LATTICE;
+/** A label this close to a bend looks like it sits on the corner. */
+const BEND_CLEARANCE = 4;
 /** Space kept above and below middle aligned text. */
 const MIDDLE_AIR = 4;
 
@@ -46,6 +48,18 @@ export function lint(text: string): Finding[] {
   checkTexts(doc, warn);
   checkFrames(doc, warn);
   return findings;
+}
+
+/** Every line's computed route and its length, to place labels by `t`. */
+export function routes(text: string): Array<{ id: string; length: number; points: Point[] }> {
+  const doc = parseProject(text).doc;
+  return doc.lines.flatMap((l) => {
+    const points = route(doc, l);
+    if (!points) return [];
+    let length = 0;
+    for (let i = 1; i < points.length; i++) length += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    return [{ id: l.id, length, points }];
+  });
 }
 
 type Warn = (where: string, message: string) => void;
@@ -143,9 +157,10 @@ function textBlock(s: Shape): { rect: Rect; brokenWord: boolean } {
   const words = s.text.split(/\s+/).filter((w) => w !== "");
   const brokenWord = words.some((w) => wrapText(w, maxWidth, s.fontSize, s.bold).length > 1);
   const height = lines.length * lineHeightFor(s.fontSize);
-  // Width is taken as the full text area, a safe upper bound.
+  const width = Math.min(maxWidth, Math.max(...lines.map((l) => textWidth(l, s.fontSize, s.bold))));
   const y = { top: s.y + padding, middle: s.y + (s.height - height) / 2, bottom: s.y + s.height - padding - height }[s.valign];
-  return { rect: { x: s.x + padding, y, width: maxWidth, height }, brokenWord };
+  const x = { left: s.x + padding, center: s.x + (s.width - width) / 2, right: s.x + s.width - padding - width }[s.align];
+  return { rect: { x, y, width, height }, brokenWord };
 }
 
 interface Segment {
@@ -197,10 +212,19 @@ function checkLines(doc: Doc, warn: Warn): void {
 
   const boxes = doc.labels.flatMap((l) => {
     const box = labelBox(doc, l);
-    return box ? [{ id: l.id, box }] : [];
+    const line = doc.lines.find((x) => x.id === l.lineId);
+    const points = line ? (route(doc, line) ?? []) : [];
+    return box ? [{ id: l.id, box, bends: points.slice(1, -1) }] : [];
   });
-  for (const [i, { id, box }] of boxes.entries()) {
+  const { containers } = layering(doc);
+  for (const [i, { id, box, bends }] of boxes.entries()) {
     for (const s of leaves) if (overlap(box, s)) warn(at("labels", id), `overlaps shapes[${s.id}]`);
+    for (const s of containers) {
+      if (overlap(box, s) && !inside(box, s)) warn(at("labels", id), `cuts across the border of shapes[${s.id}]`);
+    }
+    if (bends.some((p) => inside({ ...p, width: 0, height: 0 }, inflate(box, BEND_CLEARANCE)))) {
+      warn(at("labels", id), "sits on a bend, move it onto a straight run");
+    }
     for (const other of boxes.slice(i + 1)) if (overlap(box, other.box)) warn(at("labels", id), `overlaps labels[${other.id}]`);
     for (const t of doc.texts) {
       const tb = textBox(t);
